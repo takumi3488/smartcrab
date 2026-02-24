@@ -12,11 +12,14 @@ pub fn ensure_smartcrab_project() -> io::Result<PathBuf> {
     let mut dir = std::env::current_dir()?;
     loop {
         let cargo_toml = dir.join("Cargo.toml");
-        if cargo_toml.exists() {
-            let content = std::fs::read_to_string(&cargo_toml)?;
-            if content.contains("[package]") {
-                return Ok(dir);
+        match std::fs::read_to_string(&cargo_toml) {
+            Ok(content) => {
+                if content.lines().any(|l| l.trim() == "[package]") {
+                    return Ok(dir);
+                }
             }
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e),
         }
         match dir.parent() {
             Some(parent) => dir = parent.to_path_buf(),

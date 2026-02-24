@@ -110,7 +110,7 @@ fn rebuild_dag_ref(dag: &Dag) -> Dag {
     if let Some(desc) = dag.description() {
         builder = builder.description(desc);
     }
-    builder.add_input(StubInput).build().unwrap()
+    builder.add_input(StubInput).build().expect("failed to build stub DAG")
 }
 
 /// MCP server that exposes DAGs as tools.

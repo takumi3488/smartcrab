@@ -18,7 +18,7 @@ fn run_rejects_outside_project() {
         .current_dir(tmp.path())
         .assert()
         .failure()
-        .code(2)
+        .code(1)
         .stderr(predicate::str::contains("Not a SmartCrab project"));
 }
 
@@ -32,6 +32,6 @@ fn run_accepts_release_flag() {
         .current_dir(tmp.path())
         .assert()
         .failure()
-        .code(2)
+        .code(1)
         .stderr(predicate::str::contains("Not a SmartCrab project"));
 }

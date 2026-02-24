@@ -82,7 +82,11 @@ pub fn run(
     let mut rendered = String::new();
     for (i, dag) in selected.iter().enumerate() {
         if i > 0 {
-            rendered.push_str("\n---\n\n");
+            let separator = match format {
+                VizFormat::Ascii => "\n---\n\n",
+                VizFormat::Mermaid | VizFormat::Dot => "\n\n",
+            };
+            rendered.push_str(separator);
         }
         let output = render_dag(dag, format, no_types, show_order);
         rendered.push_str(&output);
@@ -264,7 +268,7 @@ fn extract_conditional_branches(content: &str) -> Vec<(String, String)> {
             let abs_start = pos + start + 2;
             if let Some(end_label) = content[abs_start..].find('"') {
                 let label = content[abs_start..abs_start + end_label].to_owned();
-                let rest = &content[abs_start + end_label..];
+                let rest = &content[abs_start + end_label + 1..];
                 // Find next string literal for target
                 if let Some(target_start) = rest.find('"') {
                     let target_rest = &rest[target_start + 1..];
@@ -316,7 +320,7 @@ fn kind_emoji(kind: NodeKind) -> &'static str {
     }
 }
 
-fn render_mermaid(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String {
+fn render_mermaid(dag: &ParsedDag, no_types: bool, show_order: bool) -> String {
     let mut out = String::from("flowchart TD\n");
 
     for (idx, node) in dag.nodes.iter().enumerate() {
@@ -327,7 +331,9 @@ fn render_mermaid(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String 
         if show_order {
             label = format!("#{} {label}", idx + 1);
         }
-        label.push_str(&format!("<br/>{kind}"));
+        if !no_types {
+            label.push_str(&format!("<br/>{kind}"));
+        }
 
         let shape = match node.kind {
             NodeKind::Input => format!("    {}([\"{label}\"])", node.name),
@@ -357,7 +363,7 @@ fn render_mermaid(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String 
     out
 }
 
-fn render_dot(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String {
+fn render_dot(dag: &ParsedDag, no_types: bool, show_order: bool) -> String {
     let mut out = format!("digraph \"{}\" {{\n", dag.name);
     out.push_str("    rankdir=TB;\n");
     out.push_str("    node [fontname=\"sans-serif\", fontsize=12];\n");
@@ -371,7 +377,9 @@ fn render_dot(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String {
         if show_order {
             label = format!("#{} {label}", idx + 1);
         }
-        label.push_str(&format!("\\n({kind})"));
+        if !no_types {
+            label.push_str(&format!("\\n({kind})"));
+        }
 
         let shape = match node.kind {
             NodeKind::Input => "box, style=rounded",
@@ -405,7 +413,7 @@ fn render_dot(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String {
     out
 }
 
-fn render_ascii(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String {
+fn render_ascii(dag: &ParsedDag, no_types: bool, show_order: bool) -> String {
     let mut out = String::new();
 
     // Build edge label lookup
@@ -430,7 +438,11 @@ fn render_ascii(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String {
         }
         let line2 = format!("({kind} Layer)");
 
-        let content_width = line1.chars().count().max(line2.chars().count()) + 2;
+        let content_width = if no_types {
+            line1.chars().count() + 2
+        } else {
+            line1.chars().count().max(line2.chars().count()) + 2
+        };
         let box_width = content_width + 2;
         let inner_width = box_width - 2;
 
@@ -443,14 +455,16 @@ fn render_ascii(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String {
             "\u{2500}".repeat(box_width.saturating_sub(2))
         );
         let row1 = format!("\u{2502}{}\u{2502}", center_text(&line1, inner_width));
-        let row2 = format!("\u{2502}{}\u{2502}", center_text(&line2, inner_width));
 
         out.push_str(&top);
         out.push('\n');
         out.push_str(&row1);
         out.push('\n');
-        out.push_str(&row2);
-        out.push('\n');
+        if !no_types {
+            let row2 = format!("\u{2502}{}\u{2502}", center_text(&line2, inner_width));
+            out.push_str(&row2);
+            out.push('\n');
+        }
         out.push_str(&bot);
         out.push('\n');
 

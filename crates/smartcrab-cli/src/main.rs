@@ -94,7 +94,7 @@ fn main() {
         Commands::Run { release } => {
             if let Err(e) = commands::run::run(release) {
                 eprintln!("Error: {e}");
-                std::process::exit(2);
+                std::process::exit(1);
             }
         }
         Commands::Viz {
@@ -112,7 +112,7 @@ fn main() {
                 show_order,
             ) {
                 eprintln!("Error: {e}");
-                std::process::exit(2);
+                std::process::exit(1);
             }
         }
     }

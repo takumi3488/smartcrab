@@ -27,10 +27,7 @@ pub fn run(release: bool) -> io::Result<()> {
 
     let run_status = run_cmd.status()?;
     if !run_status.success() {
-        return Err(io::Error::new(
-            io::ErrorKind::Interrupted,
-            "Application exited with an error",
-        ));
+        return Err(io::Error::other("Application exited with an error"));
     }
 
     Ok(())
