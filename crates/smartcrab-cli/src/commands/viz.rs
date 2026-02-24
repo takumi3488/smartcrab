@@ -68,7 +68,10 @@ pub fn run(
             if found.is_empty() {
                 return Err(io::Error::new(
                     io::ErrorKind::NotFound,
-                    format!("DAG `{name}` not found. Available DAGs: {}", dag_names(&dags)),
+                    format!(
+                        "DAG `{name}` not found. Available DAGs: {}",
+                        dag_names(&dags)
+                    ),
                 ));
             }
             found
@@ -268,7 +271,9 @@ fn extract_conditional_branches(content: &str) -> Vec<(String, String)> {
                     if let Some(target_end) = target_rest.find('"') {
                         let target = target_rest[..target_end].to_owned();
                         // Validate: target should look like a valid identifier
-                        if target.chars().all(|c| c.is_alphanumeric() || c == '_') && !target.is_empty() {
+                        if target.chars().all(|c| c.is_alphanumeric() || c == '_')
+                            && !target.is_empty()
+                        {
                             branches.push((label, target));
                         }
                     }
@@ -338,7 +343,10 @@ fn render_mermaid(dag: &ParsedDag, _no_types: bool, show_order: bool) -> String 
     for edge in &dag.edges {
         match &edge.label {
             Some(label) => {
-                out.push_str(&format!("    {} -->|\"{}\"| {}\n", edge.from, label, edge.to));
+                out.push_str(&format!(
+                    "    {} -->|\"{}\"| {}\n",
+                    edge.from, label, edge.to
+                ));
             }
             None => {
                 out.push_str(&format!("    {} --> {}\n", edge.from, edge.to));
