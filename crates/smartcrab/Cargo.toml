@@ -2,6 +2,9 @@
 name = "smartcrab"
 edition.workspace = true
 version.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "Core library for SmartCrab workflow orchestration engine"
 
 [dependencies]
 async-trait = "0.1"
