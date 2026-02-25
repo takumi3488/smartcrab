@@ -33,13 +33,13 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
     cargo build --release && \
-    cp /app/target/release/smartcrab /tmp/smartcrab
+    cp /app/target/release/crab /tmp/crab
 
 # Runtime stage: Create minimal production image with static binary
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:cba10d7abd3e203428e86f5b2d7fd5eb7d8987c387864ae4996cf97191b33764
 
 WORKDIR /app
 
-COPY --from=builder /tmp/smartcrab .
+COPY --from=builder /tmp/crab .
 
-CMD ["./smartcrab"]
+CMD ["./crab"]
