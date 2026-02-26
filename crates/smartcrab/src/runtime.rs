@@ -1,37 +1,37 @@
 use tokio::signal;
 use tracing::{error, info, instrument};
 
-use crate::dag::Dag;
 use crate::error::Result;
+use crate::graph::DirectedGraph;
 
-/// Runtime that manages multiple DAGs and handles graceful shutdown.
+/// Runtime that manages multiple DirectedGraphs and handles graceful shutdown.
 pub struct Runtime {
-    dags: Vec<Dag>,
+    graphs: Vec<DirectedGraph>,
 }
 
 impl Runtime {
     pub fn new() -> Self {
-        Self { dags: Vec::new() }
+        Self { graphs: Vec::new() }
     }
 
-    /// Add a DAG to be executed.
-    pub fn add_dag(mut self, dag: Dag) -> Self {
-        self.dags.push(dag);
+    /// Add a DirectedGraph to be executed.
+    pub fn add_graph(mut self, graph: DirectedGraph) -> Self {
+        self.graphs.push(graph);
         self
     }
 
-    /// Run all DAGs concurrently and wait for completion or shutdown signal.
-    #[instrument(skip(self), fields(dag_count = self.dags.len()))]
+    /// Run all DirectedGraphs concurrently and wait for completion or shutdown signal.
+    #[instrument(skip(self), fields(graph_count = self.graphs.len()))]
     pub async fn run(self) -> Result<()> {
-        info!(count = self.dags.len(), "starting runtime");
+        info!(count = self.graphs.len(), "starting runtime");
 
         let mut handles = Vec::new();
-        for dag in self.dags {
-            let name = dag.name().to_owned();
+        for graph in self.graphs {
+            let name = graph.name().to_owned();
             let handle = tokio::spawn(async move {
-                info!(dag = %name, "spawning DAG");
-                if let Err(e) = dag.run().await {
-                    error!(dag = %name, error = %e, "DAG failed");
+                info!(graph = %name, "spawning graph");
+                if let Err(e) = graph.run().await {
+                    error!(graph = %name, error = %e, "graph failed");
                     return Err(e);
                 }
                 Ok(())
@@ -43,11 +43,11 @@ impl Runtime {
             _ = async {
                 for handle in handles {
                     if let Ok(Err(e)) = handle.await {
-                        error!(error = %e, "DAG error");
+                        error!(error = %e, "graph error");
                     }
                 }
             } => {
-                info!("all DAGs completed");
+                info!("all graphs completed");
             }
             _ = shutdown_signal() => {
                 info!("shutdown signal received, stopping");
@@ -94,7 +94,7 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     use super::*;
-    use crate::dag::DagBuilder;
+    use crate::graph::DirectedGraphBuilder;
     use crate::layer::{InputLayer, Layer, OutputLayer};
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,15 +131,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_runtime_runs_multiple_dags() {
-        let dag1 = DagBuilder::new("dag1")
+    async fn test_runtime_runs_multiple_graphs() {
+        let graph1 = DirectedGraphBuilder::new("graph1")
             .add_input(In)
             .add_output(Out)
             .add_edge("In", "Out")
             .build()
             .unwrap();
 
-        // We can't reuse the same struct instances, so define separate ones
         struct In2;
         impl Layer for In2 {
             fn name(&self) -> &str {
@@ -167,14 +166,14 @@ mod tests {
             }
         }
 
-        let dag2 = DagBuilder::new("dag2")
+        let graph2 = DirectedGraphBuilder::new("graph2")
             .add_input(In2)
             .add_output(Out2)
             .add_edge("In2", "Out2")
             .build()
             .unwrap();
 
-        let runtime = Runtime::new().add_dag(dag1).add_dag(dag2);
+        let runtime = Runtime::new().add_graph(graph1).add_graph(graph2);
         let result = runtime.run().await;
         assert!(result.is_ok());
     }

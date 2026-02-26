@@ -131,46 +131,46 @@ impl InputLayer for MockHttpInput {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn test_discord_pipeline_dag() {
-    let dag = DagBuilder::new("discord_pipeline")
+async fn test_discord_pipeline_graph() {
+    let graph = DirectedGraphBuilder::new("discord_pipeline")
         .add_input(MockDiscordInput)
         .add_hidden(MockClaudeCodeLayer)
         .add_output(MockDiscordOutput)
         .add_edge("DiscordInput", "ClaudeCodeLayer")
         .add_edge("ClaudeCodeLayer", "DiscordOutput")
         .build()
-        .expect("DAG should build successfully");
+        .expect("graph should build successfully");
 
-    dag.run().await.expect("DAG should run successfully");
+    graph.run().await.expect("graph should run successfully");
 }
 
 #[tokio::test]
-async fn test_cron_pipeline_dag() {
-    let dag = DagBuilder::new("cron_pipeline")
+async fn test_cron_pipeline_graph() {
+    let graph = DirectedGraphBuilder::new("cron_pipeline")
         .add_input(MockCronInput)
         .add_output(MockDiscordOutput)
         .add_edge("CronInput", "DiscordOutput")
         .build()
-        .expect("DAG should build successfully");
+        .expect("graph should build successfully");
 
-    dag.run().await.expect("DAG should run successfully");
+    graph.run().await.expect("graph should run successfully");
 }
 
 #[tokio::test]
-async fn test_http_pipeline_dag() {
-    let dag = DagBuilder::new("http_pipeline")
+async fn test_http_pipeline_graph() {
+    let graph = DirectedGraphBuilder::new("http_pipeline")
         .add_input(MockHttpInput)
         .add_output(MockDiscordOutput)
         .add_edge("HttpInput", "DiscordOutput")
         .build()
-        .expect("DAG should build successfully");
+        .expect("graph should build successfully");
 
-    dag.run().await.expect("DAG should run successfully");
+    graph.run().await.expect("graph should run successfully");
 }
 
 #[test]
 fn test_discord_pipeline_type_safety() {
-    // Verify that the DAG builder rejects type mismatches
+    // Verify that the graph builder rejects type mismatches
     struct WrongOutput;
     impl Layer for WrongOutput {
         fn name(&self) -> &str {
@@ -185,11 +185,11 @@ fn test_discord_pipeline_type_safety() {
         }
     }
 
-    let result = DagBuilder::new("bad_pipeline")
+    let result = DirectedGraphBuilder::new("bad_pipeline")
         .add_input(MockCronInput) // outputs DiscordNotification
         .add_output(WrongOutput) // expects DiscordMessage
         .add_edge("CronInput", "WrongOutput")
         .build();
 
-    assert!(result.is_err(), "Should reject type-mismatched DAG");
+    assert!(result.is_err(), "Should reject type-mismatched graph");
 }

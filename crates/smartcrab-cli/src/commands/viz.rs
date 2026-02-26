@@ -154,8 +154,8 @@ fn parse_dag_source(content: &str) -> Option<ParsedDag> {
 }
 
 fn extract_dag_name(content: &str) -> Option<String> {
-    // Match DagBuilder::new("name")
-    let marker = "DagBuilder::new(\"";
+    // Match DirectedGraphBuilder::new("name")
+    let marker = "DirectedGraphBuilder::new(\"";
     let start = content.find(marker)? + marker.len();
     let end = content[start..].find('"')? + start;
     Some(content[start..end].to_owned())
@@ -510,8 +510,8 @@ mod tests {
     const SAMPLE_DAG: &str = r#"
 use smartcrab::prelude::*;
 
-pub fn build() -> std::result::Result<Dag, DagError> {
-    DagBuilder::new("my_pipeline")
+pub fn build() -> std::result::Result<DirectedGraph, GraphError> {
+    DirectedGraphBuilder::new("my_pipeline")
         .add_input(HttpInput)
         .add_hidden(DataProcessor)
         .add_output(JsonResponder)
@@ -560,7 +560,7 @@ pub fn build() -> std::result::Result<Dag, DagError> {
     #[test]
     fn test_parse_dag_with_constructor() {
         let content = r#"
-DagBuilder::new("test")
+DirectedGraphBuilder::new("test")
     .add_input(SourceLayer)
     .add_hidden(ClaudeCodeLayer::new())
     .add_output(DiscordOutput)

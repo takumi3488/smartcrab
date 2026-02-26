@@ -3,8 +3,8 @@ use std::time::Duration;
 /// Top-level error type for SmartCrab.
 #[derive(Debug, thiserror::Error)]
 pub enum SmartCrabError {
-    #[error("DAG error: {0}")]
-    Dag(#[from] DagError),
+    #[error("Graph error: {0}")]
+    Graph(#[from] GraphError),
 
     #[error("`claude` command not found. Is Claude Code CLI installed?")]
     ClaudeCodeNotFound,
@@ -31,19 +31,16 @@ pub enum SmartCrabError {
     Other(String),
 }
 
-/// DAG-specific errors raised during build or execution.
+/// Graph-specific errors raised during build or execution.
 #[derive(Debug, thiserror::Error)]
-pub enum DagError {
-    #[error("Cycle detected in DAG")]
-    CycleDetected,
-
+pub enum GraphError {
     #[error("Duplicate node name: {name}")]
     DuplicateNodeName { name: String },
 
     #[error("Unreachable node: {name}")]
     UnreachableNode { name: String },
 
-    #[error("No input node found in DAG")]
+    #[error("No input node found in graph")]
     NoInputNode,
 
     #[error(

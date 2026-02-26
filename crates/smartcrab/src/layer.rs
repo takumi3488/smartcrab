@@ -90,7 +90,7 @@ impl<T: HiddenLayer> HiddenLayerDyn for T {
 
     async fn run_dyn(&self, input: &dyn DtoObject) -> Result<Box<dyn DtoObject>> {
         let concrete = input.as_any().downcast_ref::<T::Input>().ok_or_else(|| {
-            crate::error::SmartCrabError::Dag(crate::error::DagError::TypeMismatch {
+            crate::error::SmartCrabError::Graph(crate::error::GraphError::TypeMismatch {
                 from: "runtime".to_owned(),
                 to: self.name().to_owned(),
                 output_type: input.dto_type_name().to_owned(),
@@ -122,7 +122,7 @@ impl<T: OutputLayer> OutputLayerDyn for T {
 
     async fn run_dyn(&self, input: &dyn DtoObject) -> Result<()> {
         let concrete = input.as_any().downcast_ref::<T::Input>().ok_or_else(|| {
-            crate::error::SmartCrabError::Dag(crate::error::DagError::TypeMismatch {
+            crate::error::SmartCrabError::Graph(crate::error::GraphError::TypeMismatch {
                 from: "runtime".to_owned(),
                 to: self.name().to_owned(),
                 output_type: input.dto_type_name().to_owned(),
