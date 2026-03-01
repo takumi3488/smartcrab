@@ -37,8 +37,9 @@ impl Layer for DataSource {
 
 #[async_trait]
 impl InputLayer for DataSource {
+    type TriggerData = ();
     type Output = Record;
-    async fn run(&self) -> Result<Record> {
+    async fn run(&self, _: ()) -> Result<Record> {
         Ok(Record {
             name: "  Sample Record  ".into(),
             value: 42.5,
@@ -131,6 +132,7 @@ impl OutputLayer for Reporter {
 async fn main() {
     let graph = DirectedGraphBuilder::new("multi_transform")
         .description("Multi-stage data transformation pipeline")
+        .trigger(TriggerKind::Startup)
         .add_input(DataSource)
         .add_hidden(Normalizer)
         .add_hidden(Enricher)

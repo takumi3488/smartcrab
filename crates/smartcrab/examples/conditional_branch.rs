@@ -37,8 +37,9 @@ impl Layer for Sensor {
 
 #[async_trait]
 impl InputLayer for Sensor {
+    type TriggerData = ();
     type Output = SensorData;
-    async fn run(&self) -> Result<SensorData> {
+    async fn run(&self, _: ()) -> Result<SensorData> {
         Ok(SensorData {
             temperature: -5.0,
             label: String::new(),
@@ -131,6 +132,7 @@ impl OutputLayer for Logger {
 async fn main() {
     let graph = DirectedGraphBuilder::new("conditional_branch")
         .description("Routes sensor data based on temperature classification")
+        .trigger(TriggerKind::Startup)
         .add_input(Sensor)
         .add_hidden(Classifier)
         .add_output(Celebrate)

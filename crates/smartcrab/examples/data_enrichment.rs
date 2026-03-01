@@ -41,8 +41,9 @@ impl Layer for FetchData {
 
 #[async_trait]
 impl InputLayer for FetchData {
+    type TriggerData = ();
     type Output = UserProfile;
-    async fn run(&self) -> Result<UserProfile> {
+    async fn run(&self, _: ()) -> Result<UserProfile> {
         println!("📡 Fetching user profile...");
         Ok(UserProfile {
             id: 42,
@@ -153,6 +154,7 @@ impl OutputLayer for StoreProfile {
 async fn main() {
     let graph = DirectedGraphBuilder::new("data_enrichment")
         .description("Multi-stage user profile enrichment pipeline")
+        .trigger(TriggerKind::Startup)
         .add_input(FetchData)
         .add_hidden(ValidateProfile)
         .add_hidden(EnrichProfile)

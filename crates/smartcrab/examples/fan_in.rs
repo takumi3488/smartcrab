@@ -37,8 +37,9 @@ impl Layer for ApiSource {
 
 #[async_trait]
 impl InputLayer for ApiSource {
+    type TriggerData = ();
     type Output = DataPoint;
-    async fn run(&self) -> Result<DataPoint> {
+    async fn run(&self, _: ()) -> Result<DataPoint> {
         Ok(DataPoint {
             source: "api".into(),
             value: 99.5,
@@ -56,8 +57,9 @@ impl Layer for DbSource {
 
 #[async_trait]
 impl InputLayer for DbSource {
+    type TriggerData = ();
     type Output = DataPoint;
-    async fn run(&self) -> Result<DataPoint> {
+    async fn run(&self, _: ()) -> Result<DataPoint> {
         Ok(DataPoint {
             source: "database".into(),
             value: 75.0,
@@ -111,6 +113,7 @@ impl OutputLayer for Dashboard {
 async fn main() {
     let graph = DirectedGraphBuilder::new("fan_in")
         .description("Multiple data sources converge into a single aggregator")
+        .trigger(TriggerKind::Startup)
         .add_input(ApiSource)
         .add_input(DbSource)
         .add_hidden(Aggregator)

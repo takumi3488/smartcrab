@@ -40,8 +40,9 @@ impl Layer for Ingest {
 
 #[async_trait]
 impl InputLayer for Ingest {
+    type TriggerData = ();
     type Output = Document;
-    async fn run(&self) -> Result<Document> {
+    async fn run(&self, _: ()) -> Result<Document> {
         println!("📨 Ingesting document...");
         Ok(Document {
             id: 1001,
@@ -142,6 +143,7 @@ impl OutputLayer for Quarantine {
 async fn main() {
     let graph = DirectedGraphBuilder::new("complex_pipeline")
         .description("Complex document processing with validation, branching, and enrichment")
+        .trigger(TriggerKind::Startup)
         .add_input(Ingest)
         .add_hidden(Validate)
         .add_hidden(Enrich)

@@ -35,8 +35,9 @@ impl Layer for Greeter {
 
 #[async_trait]
 impl InputLayer for Greeter {
+    type TriggerData = ();
     type Output = Greeting;
-    async fn run(&self) -> Result<Greeting> {
+    async fn run(&self, _: ()) -> Result<Greeting> {
         Ok(Greeting {
             message: "Hello, SmartCrab!".into(),
         })
@@ -87,6 +88,7 @@ impl OutputLayer for Printer {
 async fn main() {
     let graph = DirectedGraphBuilder::new("basic_pipeline")
         .description("A simple linear pipeline: Greeter → Formatter → Printer")
+        .trigger(TriggerKind::Startup)
         .add_input(Greeter)
         .add_hidden(Formatter)
         .add_output(Printer)

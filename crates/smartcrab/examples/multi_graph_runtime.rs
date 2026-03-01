@@ -45,8 +45,9 @@ impl Layer for HealthChecker {
 
 #[async_trait]
 impl InputLayer for HealthChecker {
+    type TriggerData = ();
     type Output = HealthStatus;
-    async fn run(&self) -> Result<HealthStatus> {
+    async fn run(&self, _: ()) -> Result<HealthStatus> {
         println!("🏥 Checking service health...");
         Ok(HealthStatus {
             service: "api-gateway".into(),
@@ -68,7 +69,11 @@ impl OutputLayer for HealthReporter {
     type Input = HealthStatus;
     async fn run(&self, input: HealthStatus) -> Result<()> {
         let icon = if input.healthy { "✅" } else { "❌" };
-        println!("{icon} Health: {} is {}", input.service, if input.healthy { "UP" } else { "DOWN" });
+        println!(
+            "{icon} Health: {} is {}",
+            input.service,
+            if input.healthy { "UP" } else { "DOWN" }
+        );
         Ok(())
     }
 }
@@ -87,8 +92,9 @@ impl Layer for TaskPoller {
 
 #[async_trait]
 impl InputLayer for TaskPoller {
+    type TriggerData = ();
     type Output = Task;
-    async fn run(&self) -> Result<Task> {
+    async fn run(&self, _: ()) -> Result<Task> {
         println!("📋 Polling for tasks...");
         Ok(Task {
             id: 1,
@@ -129,10 +135,7 @@ impl Layer for TaskReporter {
 impl OutputLayer for TaskReporter {
     type Input = Task;
     async fn run(&self, input: Task) -> Result<()> {
-        println!(
-            "📊 Task #{} ({}): {}",
-            input.id, input.name, input.status
-        );
+        println!("📊 Task #{} ({}): {}", input.id, input.name, input.status);
         Ok(())
     }
 }
@@ -145,6 +148,7 @@ impl OutputLayer for TaskReporter {
 async fn main() {
     let health_graph = DirectedGraphBuilder::new("health_check")
         .description("Periodic health check pipeline")
+        .trigger(TriggerKind::Startup)
         .add_input(HealthChecker)
         .add_output(HealthReporter)
         .add_edge("HealthChecker", "HealthReporter")
@@ -153,6 +157,7 @@ async fn main() {
 
     let task_graph = DirectedGraphBuilder::new("task_processing")
         .description("Task polling and execution pipeline")
+        .trigger(TriggerKind::Startup)
         .add_input(TaskPoller)
         .add_hidden(TaskExecutor)
         .add_output(TaskReporter)
@@ -161,9 +166,7 @@ async fn main() {
         .build()
         .expect("failed to build task graph");
 
-    let runtime = Runtime::new()
-        .add_graph(health_graph)
-        .add_graph(task_graph);
+    let runtime = Runtime::new().add_graph(health_graph).add_graph(task_graph);
 
     runtime.run().await.expect("runtime execution failed");
 }

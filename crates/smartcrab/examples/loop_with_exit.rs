@@ -10,8 +10,8 @@
 //!
 //! Run: `cargo run -p smartcrab --example loop_with_exit`
 
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -40,8 +40,9 @@ impl Layer for Seed {
 
 #[async_trait]
 impl InputLayer for Seed {
+    type TriggerData = ();
     type Output = Counter;
-    async fn run(&self) -> Result<Counter> {
+    async fn run(&self, _: ()) -> Result<Counter> {
         println!("🌱 Seeding with value=1");
         Ok(Counter { value: 1 })
     }
@@ -64,7 +65,10 @@ impl HiddenLayer for Accumulator {
     async fn run(&self, input: Counter) -> Result<Counter> {
         let iter = self.iteration.fetch_add(1, Ordering::SeqCst) + 1;
         let new_value = input.value + iter;
-        println!("🔄 Iteration {iter}: {} + {iter} = {new_value}", input.value);
+        println!(
+            "🔄 Iteration {iter}: {} + {iter} = {new_value}",
+            input.value
+        );
         Ok(Counter { value: new_value })
     }
 }
@@ -94,6 +98,7 @@ impl OutputLayer for ResultPrinter {
 async fn main() {
     let graph = DirectedGraphBuilder::new("loop_with_exit")
         .description("Accumulates values in a loop until threshold is reached")
+        .trigger(TriggerKind::Startup)
         .add_input(Seed)
         .add_hidden(Accumulator {
             iteration: Arc::new(AtomicU32::new(0)),
@@ -103,10 +108,10 @@ async fn main() {
         .add_edge("Accumulator", "Accumulator")
         .add_edge("Accumulator", "ResultPrinter")
         .add_exit_condition("Accumulator", |dto| {
-            if let Some(counter) = dto.as_any().downcast_ref::<Counter>() {
-                if counter.value >= 10 {
-                    return None; // exit
-                }
+            if let Some(counter) = dto.as_any().downcast_ref::<Counter>()
+                && counter.value >= 10
+            {
+                return None; // exit
             }
             Some("continue".into()) // keep looping
         })

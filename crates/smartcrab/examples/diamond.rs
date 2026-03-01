@@ -38,8 +38,9 @@ impl Layer for TextInput {
 
 #[async_trait]
 impl InputLayer for TextInput {
+    type TriggerData = ();
     type Output = Text;
-    async fn run(&self) -> Result<Text> {
+    async fn run(&self, _: ()) -> Result<Text> {
         Ok(Text {
             content: "SmartCrab".into(),
         })
@@ -127,6 +128,7 @@ impl OutputLayer for Display {
 async fn main() {
     let graph = DirectedGraphBuilder::new("diamond")
         .description("Diamond-shaped graph with parallel processing paths")
+        .trigger(TriggerKind::Startup)
         .add_input(TextInput)
         .add_hidden(UpperCase)
         .add_hidden(Reverse)

@@ -38,8 +38,9 @@ impl Layer for EventSource {
 
 #[async_trait]
 impl InputLayer for EventSource {
+    type TriggerData = ();
     type Output = Event;
-    async fn run(&self) -> Result<Event> {
+    async fn run(&self, _: ()) -> Result<Event> {
         Ok(Event {
             kind: "user.signup".into(),
             payload: r#"{"user":"alice"}"#.into(),
@@ -106,6 +107,7 @@ impl OutputLayer for MetricsOutput {
 async fn main() {
     let graph = DirectedGraphBuilder::new("fan_out")
         .description("Single event source fans out to multiple outputs")
+        .trigger(TriggerKind::Startup)
         .add_input(EventSource)
         .add_output(ConsoleOutput)
         .add_output(FileOutput)
