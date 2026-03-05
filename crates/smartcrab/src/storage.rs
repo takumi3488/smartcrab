@@ -167,14 +167,14 @@ impl Storage for FileStorage {
     async fn set(&self, key: &str, value: String) -> Result<()> {
         let mut guard = self.data.write().await;
         guard.insert(key.to_owned(), value);
-        self.flush(&*guard).await
+        self.flush(&guard).await
     }
 
     async fn delete(&self, key: &str) -> Result<bool> {
         let mut guard = self.data.write().await;
         let removed = guard.remove(key).is_some();
         if removed {
-            self.flush(&*guard).await?;
+            self.flush(&guard).await?;
         }
         Ok(removed)
     }
