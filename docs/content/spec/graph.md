@@ -23,7 +23,7 @@ Creates a new DirectedGraphBuilder. `name` is used as the span name in traces.
 ### `add_input`
 
 ```rust
-pub fn add_input<L: InputLayer>(self, layer: L) -> Self
+pub fn add_input<L: InputNode>(self, layer: L) -> Self
 ```
 
 Adds an Input Layer.
@@ -31,7 +31,7 @@ Adds an Input Layer.
 ### `add_hidden`
 
 ```rust
-pub fn add_hidden<L: HiddenLayer>(self, layer: L) -> Self
+pub fn add_hidden<L: HiddenNode>(self, layer: L) -> Self
 ```
 
 Adds a Hidden Layer.
@@ -39,7 +39,7 @@ Adds a Hidden Layer.
 ### `add_output`
 
 ```rust
-pub fn add_output<L: OutputLayer>(self, layer: L) -> Self
+pub fn add_output<L: OutputNode>(self, layer: L) -> Self
 ```
 
 Adds an Output Layer.
@@ -92,7 +92,7 @@ Validates the graph and returns an executable `DirectedGraph` instance. Returns 
 Validation includes:
 - DTO type consistency check
 - Branch target existence check for conditional edges
-- Input Layer existence check
+- Input Node existence check
 - Node name uniqueness check
 
 Note: Unlike a DAG, cycle detection and unreachable node detection are not performed.
@@ -103,7 +103,7 @@ Note: Unlike a DAG, cycle detection and unreachable node detection are not perfo
 Fn(&dyn DtoObject) -> Option<String> + Send + Sync + 'static
 ```
 
-- Input: A reference to the output DTO of the preceding Layer (`&dyn DtoObject`)
+- Input: A reference to the output DTO of the preceding Node (`&dyn DtoObject`)
 - Output: The label of the branch target (corresponds to a key in `branches`), or `None` to terminate
 - `Send + Sync`: Safely shareable across async tasks
 - `'static`: Valid for the lifetime of the Graph
@@ -187,10 +187,10 @@ let graph = DirectedGraphBuilder::new("ai_routing")
 use smartcrab::prelude::*;
 
 let graph = DirectedGraphBuilder::new("feedback_loop")
-    .add_input(SourceLayer)
-    .add_hidden(ProcessLayer)
-    .add_hidden(FeedbackLayer)
-    .add_output(ExitLayer)
+    .add_input(SourceNode)
+    .add_hidden(ProcessNode)
+    .add_hidden(FeedbackNode)
+    .add_output(ExitNode)
     .add_edge("Source", "Process")
     .add_edge("Process", "Feedback")
     .add_edge("Feedback", "Feedback")  // self-loop

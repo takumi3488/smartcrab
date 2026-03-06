@@ -49,12 +49,12 @@ impl Dto for MyData {}
 
 ## Naming Conventions
 
-DTOs are named based on the Layer that produces them.
+DTOs are named based on the Node that produces them.
 
 | Pattern | Description | Example |
 |---------|------|-----|
-| `<LayerName>Input` | Input DTO for a Layer | `AnalyzerInput` |
-| `<LayerName>Output` | Output DTO for a Layer | `AnalyzerOutput` |
+| `<LayerName>Input` | Input DTO for a Node | `AnalyzerInput` |
+| `<LayerName>Output` | Output DTO for a Node | `AnalyzerOutput` |
 
 A Layer's `Input` associated type matches the `Output` DTO of the preceding Layer. For this reason, it is common for adjacent Layers to share the same DTO type.
 
