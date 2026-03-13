@@ -78,10 +78,7 @@ impl MockChatClient {
     /// Returns an empty list if the internal mutex is poisoned.
     #[must_use]
     pub fn sent_messages(&self) -> Vec<(String, String)> {
-        self.messages
-            .lock()
-            .map(|g| g.clone())
-            .unwrap_or_default()
+        self.messages.lock().map(|g| g.clone()).unwrap_or_default()
     }
 }
 

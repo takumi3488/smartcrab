@@ -92,8 +92,8 @@ fn generated_project_has_expected_src_structure() -> Result<(), Box<dyn std::err
 }
 
 #[test]
-fn generated_project_contains_no_unresolved_placeholders(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn generated_project_contains_no_unresolved_placeholders() -> Result<(), Box<dyn std::error::Error>>
+{
     let (_tmp, project) = generate_project("placeholder-check")?;
 
     let placeholders = ["{{name}}", "{{name_snake}}", "{{smartcrab_dep}}"];
@@ -273,8 +273,8 @@ fn generated_project_passes_cargo_check() -> Result<(), Box<dyn std::error::Erro
 }
 
 #[test]
-fn generated_project_runs_and_fails_without_discord_token(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn generated_project_runs_and_fails_without_discord_token() -> Result<(), Box<dyn std::error::Error>>
+{
     let (_tmp, project) = generate_project("run-check")?;
 
     let output = std::process::Command::new("cargo")

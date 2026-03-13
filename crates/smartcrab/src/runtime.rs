@@ -88,8 +88,7 @@ impl Runtime {
             }
         }
 
-        let gateway_graphs =
-            Self::build_gateway_routing(&chat_graphs, &self.chat_gateways);
+        let gateway_graphs = Self::build_gateway_routing(&chat_graphs, &self.chat_gateways);
 
         info!(
             startup = startup_graphs.len(),
@@ -109,10 +108,7 @@ impl Runtime {
 
         let mut chat_handles = Vec::new();
         for (idx, gateway) in self.chat_gateways.into_iter().enumerate() {
-            let graphs = gateway_graphs
-                .get(&idx)
-                .cloned()
-                .unwrap_or_default();
+            let graphs = gateway_graphs.get(&idx).cloned().unwrap_or_default();
             info!(platform = %gateway.platform(), bot_graphs = graphs.len(), "spawning chat gateway");
             chat_handles.push(tokio::spawn(async move { gateway.run(graphs).await }));
         }
@@ -166,12 +162,11 @@ impl Runtime {
     ) -> HashMap<usize, Vec<Arc<DirectedGraph>>> {
         let mut gateway_graphs: HashMap<usize, Vec<Arc<DirectedGraph>>> = HashMap::new();
         for graph in chat_graphs {
-            let platform =
-                if let Some(TriggerKind::Chat { platform, .. }) = graph.trigger_kind() {
-                    platform.as_deref()
-                } else {
-                    None
-                };
+            let platform = if let Some(TriggerKind::Chat { platform, .. }) = graph.trigger_kind() {
+                platform.as_deref()
+            } else {
+                None
+            };
             let idx = if let Some(p) = platform {
                 gateways
                     .iter()
@@ -191,9 +186,7 @@ impl Runtime {
         gateway_graphs
     }
 
-    async fn await_startup(
-        startup_handle: tokio::task::JoinHandle<Result<()>>,
-    ) -> Result<()> {
+    async fn await_startup(startup_handle: tokio::task::JoinHandle<Result<()>>) -> Result<()> {
         match startup_handle.await {
             Ok(Ok(())) => {
                 info!("all startup graphs completed");
@@ -286,15 +279,11 @@ impl Default for Runtime {
 }
 
 async fn shutdown_signal() {
-    let ctrl_c = async {
-        if let Ok(()) = signal::ctrl_c().await {}
-    };
+    let ctrl_c = async { if let Ok(()) = signal::ctrl_c().await {} };
 
     #[cfg(unix)]
     let terminate = async {
-        if let Ok(mut sig) =
-            signal::unix::signal(signal::unix::SignalKind::terminate())
-        {
+        if let Ok(mut sig) = signal::unix::signal(signal::unix::SignalKind::terminate()) {
             sig.recv().await;
         }
     };
@@ -395,6 +384,10 @@ mod tests {
             .build()
             .map_err(crate::error::SmartCrabError::Graph)?;
 
-        Runtime::new().add_graph(graph1).add_graph(graph2).run().await
+        Runtime::new()
+            .add_graph(graph1)
+            .add_graph(graph2)
+            .run()
+            .await
     }
 }

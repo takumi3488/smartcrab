@@ -291,7 +291,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_file_storage_persistence() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    async fn test_file_storage_persistence() -> std::result::Result<(), Box<dyn std::error::Error>>
+    {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("persist.json");
 
@@ -310,7 +311,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_arc_dyn_storage_delegates() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    async fn test_arc_dyn_storage_delegates() -> std::result::Result<(), Box<dyn std::error::Error>>
+    {
         let storage: Arc<dyn Storage> = Arc::new(InMemoryStorage::new());
         storage.set("k", "v".to_owned()).await?;
         assert_eq!(storage.get("k").await?, Some("v".to_owned()));

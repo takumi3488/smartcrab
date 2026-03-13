@@ -144,8 +144,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // --- First run: write data ---
     println!("=== First run (writing data) ===");
     {
-        let storage: Arc<dyn Storage> =
-            Arc::new(FileStorage::open(&storage_path).await?);
+        let storage: Arc<dyn Storage> = Arc::new(FileStorage::open(&storage_path).await?);
 
         let graph = DirectedGraphBuilder::new("storage_persistent")
             .description("Record a deployment to FileStorage")
