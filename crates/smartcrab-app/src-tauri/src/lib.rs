@@ -2,34 +2,44 @@
 #![warn(clippy::pedantic)]
 
 pub mod commands;
+pub mod db;
+pub mod engine;
 pub mod error;
 
-use rusqlite::Connection;
-use tauri::Manager;
+use tauri::Manager as _;
 
-use commands::{DbState, init_db};
+use crate::db::DbState;
+use crate::error::{AppError, Result};
 
-/// Set up and run the Tauri application.
+/// Entry point called from `main.rs`.
+///
+/// Initialises the database and starts the Tauri application.
 ///
 /// # Errors
 ///
-/// Returns a `tauri::Error` if the application fails to build or run.
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() -> Result<(), tauri::Error> {
+/// Returns [`AppError`] if the database cannot be initialised or the Tauri
+/// runtime fails to start.
+pub fn run() -> Result<()> {
     tauri::Builder::default()
         .setup(|app| {
-            let data_dir = app
+            let app_dir = app
                 .path()
                 .app_data_dir()
-                .map_err(|e| std::io::Error::other(e.to_string()))?;
-            std::fs::create_dir_all(&data_dir)?;
-            let db_path = data_dir.join("smartcrab.db");
-            let conn =
-                Connection::open(&db_path).map_err(|e| std::io::Error::other(e.to_string()))?;
-            init_db(&conn).map_err(|e| std::io::Error::other(e.to_string()))?;
+                .map_err(|e| AppError::Other(e.to_string()))?;
+
+            std::fs::create_dir_all(&app_dir)?;
+
+            let db_path = app_dir.join("smartcrab.db");
+            let db_path_str = db_path
+                .to_str()
+                .ok_or_else(|| AppError::Other("DB path is not valid UTF-8".to_owned()))?;
+
+            let conn = db::init(db_path_str)?;
             app.manage(DbState {
-                db: std::sync::Mutex::new(conn),
+                conn: std::sync::Mutex::new(conn),
             });
+
+            tracing::info!("SmartCrab app started");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -49,4 +59,7 @@ pub fn run() -> Result<(), tauri::Error> {
             commands::chat_ai::chat_create_pipeline,
         ])
         .run(tauri::generate_context!())
+        .map_err(AppError::Tauri)?;
+
+    Ok(())
 }

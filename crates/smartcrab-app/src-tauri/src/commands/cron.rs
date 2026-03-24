@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tauri::State;
 
-use super::{DbState, lock_db};
+use crate::db::DbState;
 use crate::error::AppError;
 
 /// A scheduled cron job linked to a pipeline.
@@ -36,7 +36,7 @@ fn validate_schedule(schedule: &str) -> Result<(), AppError> {
     reason = "Tauri State must be passed by value"
 )]
 pub fn list_cron_jobs(db: State<'_, DbState>) -> Result<Vec<CronJob>, AppError> {
-    let conn = lock_db(&db)?;
+    let conn = db.lock()?;
     list_cron_jobs_db(&conn)
 }
 
@@ -56,7 +56,7 @@ pub fn create_cron_job(
     pipeline_id: String,
     schedule: String,
 ) -> Result<CronJob, AppError> {
-    let conn = lock_db(&db)?;
+    let conn = db.lock()?;
     create_cron_job_db(&conn, &pipeline_id, &schedule)
 }
 
@@ -77,7 +77,7 @@ pub fn update_cron_job(
     schedule: Option<String>,
     is_active: Option<bool>,
 ) -> Result<CronJob, AppError> {
-    let conn = lock_db(&db)?;
+    let conn = db.lock()?;
     update_cron_job_db(&conn, &id, schedule.as_deref(), is_active)
 }
 
@@ -93,7 +93,7 @@ pub fn update_cron_job(
     reason = "Tauri State and command args must be owned"
 )]
 pub fn delete_cron_job(db: State<'_, DbState>, id: String) -> Result<(), AppError> {
-    let conn = lock_db(&db)?;
+    let conn = db.lock()?;
     delete_cron_job_db(&conn, &id)
 }
 

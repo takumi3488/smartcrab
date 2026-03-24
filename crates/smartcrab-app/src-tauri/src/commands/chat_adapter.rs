@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tauri::State;
 
-use super::{DbState, lock_db};
+use crate::db::DbState;
 use crate::error::AppError;
 
 /// Summary info for a registered chat adapter.
@@ -40,24 +40,8 @@ pub struct AdapterStatus {
     reason = "Tauri State must be passed by value"
 )]
 pub fn list_adapters(db: State<'_, DbState>) -> Result<Vec<AdapterInfo>, AppError> {
-    let conn = lock_db(&db)?;
-    let mut stmt =
-        conn.prepare("SELECT adapter_type, name, config_json, is_active FROM chat_adapter_config")?;
-    let rows = stmt.query_map([], |row| {
-        let config_json: String = row.get(2)?;
-        let is_configured = config_json != "{}" && !config_json.is_empty();
-        Ok(AdapterInfo {
-            adapter_type: row.get(0)?,
-            name: row.get(1)?,
-            is_configured,
-            is_active: row.get::<_, i32>(3)? != 0,
-        })
-    })?;
-    let mut adapters = Vec::new();
-    for row in rows {
-        adapters.push(row?);
-    }
-    Ok(adapters)
+    let conn = db.lock()?;
+    list_adapters_db(&conn)
 }
 
 /// Get configuration for a specific adapter type.
@@ -75,22 +59,8 @@ pub fn get_adapter_config(
     db: State<'_, DbState>,
     adapter_type: String,
 ) -> Result<AdapterConfig, AppError> {
-    let conn = lock_db(&db)?;
-    let mut stmt = conn.prepare(
-        "SELECT adapter_type, config_json, is_active FROM chat_adapter_config WHERE adapter_type = ?1",
-    )?;
-    let config = stmt
-        .query_row([&adapter_type], |row| {
-            let json_str: String = row.get(1)?;
-            Ok((row.get::<_, String>(0)?, json_str, row.get::<_, i32>(2)?))
-        })
-        .map_err(|_| AppError::NotFound(format!("adapter '{adapter_type}' not found")))?;
-    let config_value: serde_json::Value = serde_json::from_str(&config.1)?;
-    Ok(AdapterConfig {
-        adapter_type: config.0,
-        config_json: config_value,
-        is_active: config.2 != 0,
-    })
+    let conn = db.lock()?;
+    get_adapter_config_db(&conn, &adapter_type)
 }
 
 /// Insert or update configuration for a chat adapter.
@@ -109,15 +79,8 @@ pub fn update_adapter_config(
     config_json: String,
 ) -> Result<(), AppError> {
     let _: serde_json::Value = serde_json::from_str(&config_json)?;
-    let conn = lock_db(&db)?;
-    conn.execute(
-        "INSERT INTO chat_adapter_config (adapter_type, name, config_json, is_active)
-         VALUES (?1, ?1, ?2, 0)
-         ON CONFLICT(adapter_type)
-         DO UPDATE SET config_json = excluded.config_json",
-        rusqlite::params![adapter_type, config_json],
-    )?;
-    Ok(())
+    let conn = db.lock()?;
+    update_adapter_config_db(&conn, &adapter_type, &config_json)
 }
 
 /// Start a chat adapter (placeholder — actual adapter start logic is runtime-dependent).
@@ -163,18 +126,22 @@ pub fn get_adapter_status(adapter_type: String) -> Result<AdapterStatus, AppErro
 // Standalone helpers (no Tauri State) used by tests
 // ---------------------------------------------------------------------------
 
-#[cfg(test)]
+// Schema: chat_adapter_config (id TEXT PK, adapter_type TEXT NOT NULL,
+//   config_json TEXT NOT NULL, is_active INTEGER, created_at TEXT, updated_at TEXT)
+// We store adapter_type as the `id` so each adapter_type is unique and upsert
+// works via the primary-key conflict clause.
+
 pub(crate) fn list_adapters_db(conn: &rusqlite::Connection) -> Result<Vec<AdapterInfo>, AppError> {
-    let mut stmt =
-        conn.prepare("SELECT adapter_type, name, config_json, is_active FROM chat_adapter_config")?;
+    let mut stmt = conn.prepare("SELECT id, config_json, is_active FROM chat_adapter_config")?;
     let rows = stmt.query_map([], |row| {
-        let config_json: String = row.get(2)?;
+        let adapter_type: String = row.get(0)?;
+        let config_json: String = row.get(1)?;
         let is_configured = config_json != "{}" && !config_json.is_empty();
         Ok(AdapterInfo {
-            adapter_type: row.get(0)?,
-            name: row.get(1)?,
+            name: adapter_type.clone(),
+            adapter_type,
             is_configured,
-            is_active: row.get::<_, i32>(3)? != 0,
+            is_active: row.get::<_, i32>(2)? != 0,
         })
     })?;
     let mut adapters = Vec::new();
@@ -184,14 +151,12 @@ pub(crate) fn list_adapters_db(conn: &rusqlite::Connection) -> Result<Vec<Adapte
     Ok(adapters)
 }
 
-#[cfg(test)]
 pub(crate) fn get_adapter_config_db(
     conn: &rusqlite::Connection,
     adapter_type: &str,
 ) -> Result<AdapterConfig, AppError> {
-    let mut stmt = conn.prepare(
-        "SELECT adapter_type, config_json, is_active FROM chat_adapter_config WHERE adapter_type = ?1",
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT id, config_json, is_active FROM chat_adapter_config WHERE id = ?1")?;
     let config = stmt
         .query_row([adapter_type], |row| {
             let json_str: String = row.get(1)?;
@@ -206,7 +171,6 @@ pub(crate) fn get_adapter_config_db(
     })
 }
 
-#[cfg(test)]
 pub(crate) fn update_adapter_config_db(
     conn: &rusqlite::Connection,
     adapter_type: &str,
@@ -214,10 +178,10 @@ pub(crate) fn update_adapter_config_db(
 ) -> Result<(), AppError> {
     let _: serde_json::Value = serde_json::from_str(config_json)?;
     conn.execute(
-        "INSERT INTO chat_adapter_config (adapter_type, name, config_json, is_active)
-         VALUES (?1, ?1, ?2, 0)
-         ON CONFLICT(adapter_type)
-         DO UPDATE SET config_json = excluded.config_json",
+        "INSERT INTO chat_adapter_config (id, adapter_type, config_json, is_active, created_at, updated_at)
+         VALUES (?1, ?1, ?2, 0, datetime('now'), datetime('now'))
+         ON CONFLICT(id)
+         DO UPDATE SET config_json = excluded.config_json, updated_at = excluded.updated_at",
         rusqlite::params![adapter_type, config_json],
     )?;
     Ok(())

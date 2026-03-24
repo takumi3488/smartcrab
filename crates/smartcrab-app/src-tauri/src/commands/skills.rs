@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tauri::State;
 
-use super::{DbState, lock_db};
+use crate::db::DbState;
 use crate::error::AppError;
 
 /// Information about a generated skill file.
@@ -36,7 +36,7 @@ struct PipelineRecord {
     reason = "Tauri State must be passed by value"
 )]
 pub fn list_skills(db: State<'_, DbState>) -> Result<Vec<SkillInfo>, AppError> {
-    let conn = lock_db(&db)?;
+    let conn = db.lock()?;
     list_skills_db(&conn)
 }
 
@@ -52,7 +52,7 @@ pub fn list_skills(db: State<'_, DbState>) -> Result<Vec<SkillInfo>, AppError> {
     reason = "Tauri State and command args must be owned"
 )]
 pub fn generate_skill(db: State<'_, DbState>, pipeline_id: String) -> Result<SkillInfo, AppError> {
-    let conn = lock_db(&db)?;
+    let conn = db.lock()?;
     generate_skill_db(&conn, &pipeline_id)
 }
 
@@ -68,7 +68,7 @@ pub fn generate_skill(db: State<'_, DbState>, pipeline_id: String) -> Result<Ski
     reason = "Tauri State and command args must be owned"
 )]
 pub fn delete_skill(db: State<'_, DbState>, id: String) -> Result<(), AppError> {
-    let conn = lock_db(&db)?;
+    let conn = db.lock()?;
     delete_skill_db(&conn, &id)
 }
 
@@ -189,7 +189,7 @@ fn load_pipeline(
     pipeline_id: &str,
 ) -> Result<PipelineRecord, AppError> {
     conn.query_row(
-        "SELECT name, description, yaml FROM pipelines WHERE id = ?1",
+        "SELECT name, description, yaml_content FROM pipelines WHERE id = ?1",
         [pipeline_id],
         |row| {
             Ok(PipelineRecord {
@@ -220,7 +220,7 @@ pub(crate) fn insert_test_pipeline(
     yaml: &str,
 ) {
     conn.execute(
-        "INSERT INTO pipelines (id, name, description, yaml, created_at, updated_at)
+        "INSERT INTO pipelines (id, name, description, yaml_content, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
         rusqlite::params![id, name, description, yaml],
     )
