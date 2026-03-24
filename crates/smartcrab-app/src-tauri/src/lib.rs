@@ -8,11 +8,11 @@ use commands::pipeline;
 ///
 /// # Panics
 ///
-/// Panics if the in-memory SQLite database cannot be opened, the schema
+/// Panics if the in-memory `SQLite` database cannot be opened, the schema
 /// cannot be initialised, or the Tauri application fails to start. These
 /// are all considered unrecoverable fatal startup failures.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-#[allow(clippy::expect_used)]
+#[expect(clippy::expect_used, reason = "fatal startup failure — no recovery path")]
 pub fn run() {
     let conn = rusqlite::Connection::open_in_memory()
         .expect("Failed to open in-memory SQLite database");

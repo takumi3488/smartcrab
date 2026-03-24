@@ -8,7 +8,7 @@ use tauri::State;
 use crate::bridge;
 use crate::error::AppError;
 
-/// State type wrapping an SQLite connection for Tauri's managed state.
+/// State type wrapping an `SQLite` connection for Tauri's managed state.
 pub type DbState = Mutex<Connection>;
 
 /// Summary information about a pipeline (used in list views).
@@ -72,7 +72,7 @@ pub fn init_db(conn: &Connection) -> Result<(), AppError> {
 /// Returns `AppError::Database` if the query fails or `AppError::Validation` if
 /// the database lock cannot be acquired.
 #[tauri::command]
-#[allow(clippy::needless_pass_by_value)]
+#[expect(clippy::needless_pass_by_value, reason = "Tauri command injection requires owned State<T>")]
 pub fn list_pipelines(db: State<'_, DbState>) -> Result<Vec<PipelineInfo>, AppError> {
     let conn = db
         .lock()
@@ -104,7 +104,7 @@ pub fn list_pipelines(db: State<'_, DbState>) -> Result<Vec<PipelineInfo>, AppEr
 /// Returns `AppError::NotFound` if no pipeline with `id` exists, `AppError::Database`
 /// on query failure, or `AppError::Validation` if the lock cannot be acquired.
 #[tauri::command]
-#[allow(clippy::needless_pass_by_value)]
+#[expect(clippy::needless_pass_by_value, reason = "Tauri command injection requires owned State<T>")]
 pub fn get_pipeline(db: State<'_, DbState>, id: String) -> Result<PipelineDetail, AppError> {
     let conn = db
         .lock()
@@ -120,7 +120,7 @@ pub fn get_pipeline(db: State<'_, DbState>, id: String) -> Result<PipelineDetail
 /// invalid, `AppError::Database` on insert failure, or `AppError::Validation`
 /// if the lock cannot be acquired.
 #[tauri::command]
-#[allow(clippy::needless_pass_by_value)]
+#[expect(clippy::needless_pass_by_value, reason = "Tauri command injection requires owned State<T>")]
 pub fn create_pipeline(
     db: State<'_, DbState>,
     name: String,
@@ -152,7 +152,7 @@ pub fn create_pipeline(
 /// invalid, `AppError::Database` on update failure, or `AppError::Validation`
 /// if the lock cannot be acquired.
 #[tauri::command]
-#[allow(clippy::needless_pass_by_value)]
+#[expect(clippy::needless_pass_by_value, reason = "Tauri command injection requires owned State<T>")]
 pub fn update_pipeline(
     db: State<'_, DbState>,
     id: String,
@@ -170,31 +170,40 @@ pub fn update_pipeline(
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    // Build a single UPDATE statement with only the provided fields.
-    // Always update updated_at so callers can detect that the call was made.
-    let mut sets: Vec<&str> = Vec::new();
-    if name.is_some() {
-        sets.push("name = ?2");
+    // Build a single UPDATE statement with only the provided fields, using
+    // positional parameters that match the runtime-determined set clause.
+    let mut sets: Vec<String> = Vec::new();
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    // ?1 is reserved for the WHERE id clause appended at the end.
+    // Remaining params are appended here and referenced by their position.
+    let mut param_idx: usize = 2;
+
+    if let Some(n) = name {
+        sets.push(format!("name = ?{param_idx}"));
+        params.push(Box::new(n));
+        param_idx += 1;
     }
-    if description.is_some() {
-        sets.push("description = ?3");
+    if let Some(d) = description {
+        sets.push(format!("description = ?{param_idx}"));
+        params.push(Box::new(d));
+        param_idx += 1;
     }
-    if yaml_content.is_some() {
-        sets.push("yaml_content = ?4");
+    if let Some(y) = yaml_content {
+        sets.push(format!("yaml_content = ?{param_idx}"));
+        params.push(Box::new(y));
+        param_idx += 1;
     }
-    sets.push("updated_at = ?5");
+    sets.push(format!("updated_at = ?{param_idx}"));
+    params.push(Box::new(now));
 
     let sql = format!("UPDATE pipelines SET {} WHERE id = ?1", sets.join(", "));
-    let affected = conn.execute(
-        &sql,
-        rusqlite::params![
-            id,
-            name.as_deref().unwrap_or(""),
-            description.as_deref().unwrap_or(""),
-            yaml_content.as_deref().unwrap_or(""),
-            now,
-        ],
-    )?;
+
+    // ?1 = id; ?2 … ?N = set-clause values in the order they were pushed.
+    let ordered: Vec<&dyn rusqlite::ToSql> = std::iter::once(&id as &dyn rusqlite::ToSql)
+        .chain(params.iter().map(std::convert::AsRef::as_ref))
+        .collect();
+
+    let affected = conn.execute(&sql, ordered.as_slice())?;
 
     if affected == 0 {
         return Err(AppError::NotFound(format!("Pipeline with id '{id}' not found")));
@@ -211,7 +220,7 @@ pub fn update_pipeline(
 /// `AppError::Database` on delete failure, or `AppError::Validation` if the
 /// lock cannot be acquired.
 #[tauri::command]
-#[allow(clippy::needless_pass_by_value)]
+#[expect(clippy::needless_pass_by_value, reason = "Tauri command injection requires owned State<T>")]
 pub fn delete_pipeline(db: State<'_, DbState>, id: String) -> Result<(), AppError> {
     let conn = db
         .lock()
@@ -229,7 +238,14 @@ pub fn delete_pipeline(db: State<'_, DbState>, id: String) -> Result<(), AppErro
 }
 
 /// Validates pipeline YAML and returns structural analysis.
+///
+/// # Errors
+///
+/// Always returns `Ok`; parse errors are surfaced as `ValidationResult::errors`
+/// rather than as a top-level `Err`. Only returns `Err` if an unexpected
+/// internal error occurs.
 #[tauri::command]
+#[expect(clippy::needless_pass_by_value, reason = "Tauri command injection requires owned State<T>")]
 pub fn validate_pipeline(yaml_content: String) -> Result<ValidationResult, AppError> {
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
