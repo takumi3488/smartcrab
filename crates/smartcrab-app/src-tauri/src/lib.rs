@@ -35,6 +35,11 @@ pub fn default_llm_registry() -> AdapterRegistry<dyn LlmAdapter> {
     registry
 }
 
+/// Entry point called from `main.rs`.
+///
+/// # Errors
+///
+/// Returns [`AppError`] if the database cannot be initialised or the Tauri runtime fails.
 pub fn run() -> Result<()> {
     tauri::Builder::default()
         .setup(|app| {
@@ -68,21 +73,27 @@ pub fn run() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_trait::async_trait;
     use crate::adapters::chat::{ChatAdapter, ChatCapabilities};
+    use async_trait::async_trait;
 
     #[test]
     fn default_chat_registry_contains_discord() {
         let registry = default_chat_registry();
         assert!(registry.get("discord").is_some());
-        assert_eq!(registry.get("discord").map(|a| a.id().to_owned()), Some("discord".to_owned()));
+        assert_eq!(
+            registry.get("discord").map(|a| a.id().to_owned()),
+            Some("discord".to_owned())
+        );
     }
 
     #[test]
     fn default_llm_registry_contains_claude() {
         let registry = default_llm_registry();
         assert!(registry.get("claude").is_some());
-        assert_eq!(registry.get("claude").map(|a| a.id().to_owned()), Some("claude".to_owned()));
+        assert_eq!(
+            registry.get("claude").map(|a| a.id().to_owned()),
+            Some("claude".to_owned())
+        );
     }
 
     #[test]
@@ -90,18 +101,34 @@ mod tests {
         struct SlackAdapter;
         #[async_trait]
         impl ChatAdapter for SlackAdapter {
-            fn id(&self) -> &'static str { "slack" }
-            fn name(&self) -> &'static str { "Slack" }
+            fn id(&self) -> &'static str {
+                "slack"
+            }
+            fn name(&self) -> &'static str {
+                "Slack"
+            }
             fn capabilities(&self) -> &ChatCapabilities {
                 &ChatCapabilities {
-                    threads: true, reactions: true, file_upload: true,
-                    streaming: false, direct_message: true, group_message: true,
+                    threads: true,
+                    reactions: true,
+                    file_upload: true,
+                    streaming: false,
+                    direct_message: true,
+                    group_message: true,
                 }
             }
-            async fn send_message(&self, _: &str, _: &str) -> crate::error::Result<()> { Ok(()) }
-            async fn start_listener(&self) -> crate::error::Result<()> { Ok(()) }
-            async fn stop_listener(&self) -> crate::error::Result<()> { Ok(()) }
-            fn is_running(&self) -> bool { false }
+            async fn send_message(&self, _: &str, _: &str) -> crate::error::Result<()> {
+                Ok(())
+            }
+            async fn start_listener(&self) -> crate::error::Result<()> {
+                Ok(())
+            }
+            async fn stop_listener(&self) -> crate::error::Result<()> {
+                Ok(())
+            }
+            fn is_running(&self) -> bool {
+                false
+            }
         }
         let mut registry = default_chat_registry();
         let slack_adapter: Arc<dyn ChatAdapter> = Arc::new(SlackAdapter);
