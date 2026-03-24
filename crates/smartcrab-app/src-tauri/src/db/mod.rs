@@ -11,16 +11,13 @@ use crate::error::{AppError, Result};
 pub fn init(db_path: &str) -> Result<Connection> {
     let conn = Connection::open(db_path).map_err(AppError::Database)?;
 
-    // Enable WAL journal mode for improved concurrency.
     conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
         .map_err(AppError::Database)?;
 
-    // Create tables from schema constants.
     for stmt in schema::ALL_TABLES {
         conn.execute_batch(stmt).map_err(AppError::Database)?;
     }
 
-    // Apply version-based migrations.
     migrations::run(&conn)?;
 
     tracing::info!(path = db_path, "Database initialised");

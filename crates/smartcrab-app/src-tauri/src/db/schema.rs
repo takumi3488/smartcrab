@@ -1,4 +1,3 @@
-/// SQL to create the `pipelines` table.
 pub const CREATE_PIPELINES: &str = "
 CREATE TABLE IF NOT EXISTS pipelines (
     id TEXT PRIMARY KEY,
@@ -11,7 +10,6 @@ CREATE TABLE IF NOT EXISTS pipelines (
     is_active INTEGER DEFAULT 1
 )";
 
-/// SQL to create the `pipeline_executions` table.
 pub const CREATE_PIPELINE_EXECUTIONS: &str = "
 CREATE TABLE IF NOT EXISTS pipeline_executions (
     id TEXT PRIMARY KEY,
@@ -24,7 +22,6 @@ CREATE TABLE IF NOT EXISTS pipeline_executions (
     error_message TEXT
 )";
 
-/// SQL to create the `node_executions` table.
 pub const CREATE_NODE_EXECUTIONS: &str = "
 CREATE TABLE IF NOT EXISTS node_executions (
     id TEXT PRIMARY KEY,
@@ -40,7 +37,6 @@ CREATE TABLE IF NOT EXISTS node_executions (
     error_message TEXT
 )";
 
-/// SQL to create the `execution_logs` table.
 pub const CREATE_EXECUTION_LOGS: &str = "
 CREATE TABLE IF NOT EXISTS execution_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +47,6 @@ CREATE TABLE IF NOT EXISTS execution_logs (
     timestamp TEXT NOT NULL
 )";
 
-/// SQL to create the `skills` table.
 pub const CREATE_SKILLS: &str = "
 CREATE TABLE IF NOT EXISTS skills (
     id TEXT PRIMARY KEY,
@@ -63,8 +58,7 @@ CREATE TABLE IF NOT EXISTS skills (
     updated_at TEXT NOT NULL
 )";
 
-/// SQL to create the `chat_adapter_config` table.
-/// Generic adapter config — not tied to any specific platform.
+/// Generic adapter config — not tied to any specific chat platform.
 pub const CREATE_CHAT_ADAPTER_CONFIG: &str = "
 CREATE TABLE IF NOT EXISTS chat_adapter_config (
     id TEXT PRIMARY KEY,
@@ -75,7 +69,6 @@ CREATE TABLE IF NOT EXISTS chat_adapter_config (
     updated_at TEXT NOT NULL
 )";
 
-/// SQL to create the `llm_adapter_config` table.
 pub const CREATE_LLM_ADAPTER_CONFIG: &str = "
 CREATE TABLE IF NOT EXISTS llm_adapter_config (
     id TEXT PRIMARY KEY,
@@ -86,7 +79,6 @@ CREATE TABLE IF NOT EXISTS llm_adapter_config (
     updated_at TEXT NOT NULL
 )";
 
-/// SQL to create the `cron_jobs` table.
 pub const CREATE_CRON_JOBS: &str = "
 CREATE TABLE IF NOT EXISTS cron_jobs (
     id TEXT PRIMARY KEY,
