@@ -1,9 +1,7 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicegui-org/nicegui/main/nicegui/resources/tauri_capability.schema.json",
+  "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for SmartCrab",
+  "description": "Default capabilities for SmartCrab desktop app",
   "windows": ["main"],
-  "permissions": [
-    "core:default"
-  ]
+  "permissions": ["core:default"]
 }

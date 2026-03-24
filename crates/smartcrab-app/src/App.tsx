@@ -1,12 +1,10 @@
 import React from "react";
 
-function App(): React.ReactElement {
+export default function App(): React.ReactElement {
   return (
     <div>
       <h1>SmartCrab</h1>
-      <p>YAML Pipeline Engine</p>
+      <p>AI pipeline orchestration</p>
     </div>
   );
 }
-
-export default App;
