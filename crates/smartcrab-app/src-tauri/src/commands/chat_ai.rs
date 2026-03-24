@@ -17,8 +17,7 @@ followed by a fenced YAML code block containing the pipeline definition. \
 The pipeline YAML must have at minimum a 'name' key and a 'nodes' list. \
 Do not include any other fenced code blocks in your response.";
 
-/// Spawn `claude -p \"...\"` with a system prompt that asks for pipeline YAML,
-/// parse the response to extract any fenced YAML block, and return both.
+/// Generate a pipeline YAML from a natural-language prompt using the Claude CLI.
 #[tauri::command]
 pub async fn chat_create_pipeline(prompt: String) -> Result<ChatResponse, AppError> {
     let full_prompt = format!("{SYSTEM_PROMPT}\n\nUser request: {prompt}");

@@ -12,6 +12,15 @@ pub struct DbState {
     pub db: Mutex<Connection>,
 }
 
+/// Acquire the database lock, mapping the poison error to `AppError::Database`.
+pub(crate) fn lock_db(
+    state: &DbState,
+) -> Result<std::sync::MutexGuard<'_, Connection>, crate::error::AppError> {
+    state.db.lock().map_err(|e| {
+        crate::error::AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string()))
+    })
+}
+
 /// Initialize the database schema required by all command modules.
 ///
 /// # Errors

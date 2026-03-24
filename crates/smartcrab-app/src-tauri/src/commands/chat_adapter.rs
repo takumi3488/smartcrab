@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tauri::State;
 
-use super::DbState;
+use super::{DbState, lock_db};
 use crate::error::AppError;
 
 /// Summary info for a registered chat adapter.
@@ -32,10 +32,7 @@ pub struct AdapterStatus {
 /// List all registered chat adapters with their configuration status.
 #[tauri::command]
 pub fn list_adapters(db: State<'_, DbState>) -> Result<Vec<AdapterInfo>, AppError> {
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     let mut stmt =
         conn.prepare("SELECT adapter_type, name, config_json, is_active FROM chat_adapter_config")?;
     let rows = stmt.query_map([], |row| {
@@ -61,10 +58,7 @@ pub fn get_adapter_config(
     db: State<'_, DbState>,
     adapter_type: String,
 ) -> Result<AdapterConfig, AppError> {
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     let mut stmt = conn.prepare(
         "SELECT adapter_type, config_json, is_active FROM chat_adapter_config WHERE adapter_type = ?1",
     )?;
@@ -89,12 +83,8 @@ pub fn update_adapter_config(
     adapter_type: String,
     config_json: String,
 ) -> Result<(), AppError> {
-    // Validate that config_json is valid JSON.
     let _: serde_json::Value = serde_json::from_str(&config_json)?;
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     conn.execute(
         "INSERT INTO chat_adapter_config (adapter_type, name, config_json, is_active)
          VALUES (?1, ?1, ?2, 0)

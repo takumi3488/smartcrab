@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri::State;
 
-use super::DbState;
+use super::{DbState, lock_db};
 use crate::error::AppError;
 
 /// A scheduled cron job linked to a pipeline.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CronJob {
     pub id: String,
     pub pipeline_id: String,
@@ -28,10 +28,7 @@ fn validate_schedule(schedule: &str) -> Result<(), AppError> {
 /// List all cron jobs.
 #[tauri::command]
 pub fn list_cron_jobs(db: State<'_, DbState>) -> Result<Vec<CronJob>, AppError> {
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     list_cron_jobs_db(&conn)
 }
 
@@ -42,11 +39,7 @@ pub fn create_cron_job(
     pipeline_id: String,
     schedule: String,
 ) -> Result<CronJob, AppError> {
-    validate_schedule(&schedule)?;
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     create_cron_job_db(&conn, &pipeline_id, &schedule)
 }
 
@@ -58,23 +51,14 @@ pub fn update_cron_job(
     schedule: Option<String>,
     is_active: Option<bool>,
 ) -> Result<CronJob, AppError> {
-    if let Some(ref s) = schedule {
-        validate_schedule(s)?;
-    }
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     update_cron_job_db(&conn, &id, schedule.as_deref(), is_active)
 }
 
 /// Delete a cron job by id.
 #[tauri::command]
 pub fn delete_cron_job(db: State<'_, DbState>, id: String) -> Result<(), AppError> {
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     delete_cron_job_db(&conn, &id)
 }
 
@@ -112,6 +96,7 @@ pub(crate) fn create_cron_job_db(
     pipeline_id: &str,
     schedule: &str,
 ) -> Result<CronJob, AppError> {
+    validate_schedule(schedule)?;
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
@@ -138,18 +123,30 @@ pub(crate) fn update_cron_job_db(
     schedule: Option<&str>,
     is_active: Option<bool>,
 ) -> Result<CronJob, AppError> {
-    let now = chrono::Utc::now().to_rfc3339();
     if let Some(s) = schedule {
-        conn.execute(
-            "UPDATE cron_jobs SET schedule = ?1, updated_at = ?2 WHERE id = ?3",
-            rusqlite::params![s, now, id],
-        )?;
+        validate_schedule(s)?;
     }
-    if let Some(active) = is_active {
-        conn.execute(
-            "UPDATE cron_jobs SET is_active = ?1, updated_at = ?2 WHERE id = ?3",
-            rusqlite::params![i32::from(active), now, id],
-        )?;
+    let now = chrono::Utc::now().to_rfc3339();
+    match (schedule, is_active) {
+        (Some(s), Some(active)) => {
+            conn.execute(
+                "UPDATE cron_jobs SET schedule = ?1, is_active = ?2, updated_at = ?3 WHERE id = ?4",
+                rusqlite::params![s, i32::from(active), now, id],
+            )?;
+        }
+        (Some(s), None) => {
+            conn.execute(
+                "UPDATE cron_jobs SET schedule = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![s, now, id],
+            )?;
+        }
+        (None, Some(active)) => {
+            conn.execute(
+                "UPDATE cron_jobs SET is_active = ?1, updated_at = ?2 WHERE id = ?3",
+                rusqlite::params![i32::from(active), now, id],
+            )?;
+        }
+        (None, None) => {}
     }
     let mut stmt = conn.prepare(
         "SELECT id, pipeline_id, schedule, is_active, last_run_at, next_run_at, created_at, updated_at

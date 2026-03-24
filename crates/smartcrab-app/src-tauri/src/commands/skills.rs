@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri::State;
 
-use super::DbState;
+use super::{DbState, lock_db};
 use crate::error::AppError;
 
 /// Information about a generated skill file.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SkillInfo {
     pub id: String,
     pub name: String,
@@ -18,7 +18,7 @@ pub struct SkillInfo {
 }
 
 /// A minimal representation of a pipeline stored in the DB.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 struct PipelineRecord {
     pub name: String,
     pub description: Option<String>,
@@ -28,30 +28,21 @@ struct PipelineRecord {
 /// List all generated skills.
 #[tauri::command]
 pub fn list_skills(db: State<'_, DbState>) -> Result<Vec<SkillInfo>, AppError> {
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     list_skills_db(&conn)
 }
 
 /// Generate a skill Markdown file from a stored pipeline YAML and register it.
 #[tauri::command]
 pub fn generate_skill(db: State<'_, DbState>, pipeline_id: String) -> Result<SkillInfo, AppError> {
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     generate_skill_db(&conn, &pipeline_id)
 }
 
 /// Delete a skill by id (removes the file and the DB record).
 #[tauri::command]
 pub fn delete_skill(db: State<'_, DbState>, id: String) -> Result<(), AppError> {
-    let conn = db
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(rusqlite::Error::InvalidParameterName(e.to_string())))?;
+    let conn = lock_db(&db)?;
     delete_skill_db(&conn, &id)
 }
 
@@ -88,34 +79,20 @@ pub(crate) fn generate_skill_db(
     conn: &rusqlite::Connection,
     pipeline_id: &str,
 ) -> Result<SkillInfo, AppError> {
-    // Load the pipeline record from the pipelines table.
     let record = load_pipeline(conn, pipeline_id)?;
 
-    // Determine target directories.
     let home = std::env::var("HOME").unwrap_or_else(|_| String::from("/tmp"));
-    let claude_dir = std::path::PathBuf::from(&home)
-        .join(".smartcrab")
-        .join(".claude")
-        .join("skills");
-    let agents_dir = std::path::PathBuf::from(&home)
-        .join(".smartcrab")
-        .join(".agents")
-        .join("skills");
+    let smartcrab_dir = std::path::PathBuf::from(home).join(".smartcrab");
+    let claude_dir = smartcrab_dir.join(".claude").join("skills");
+    let agents_dir = smartcrab_dir.join(".agents").join("skills");
 
     std::fs::create_dir_all(&claude_dir)?;
     std::fs::create_dir_all(&agents_dir)?;
 
-    // Sanitize name for filename.
     let safe_name: String = record
         .name
         .chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
         .collect();
 
     let content = build_skill_content(&record.name, record.description.as_deref(), &record.yaml);
@@ -131,7 +108,6 @@ pub(crate) fn generate_skill_db(
         .ok_or_else(|| AppError::InvalidInput("non-UTF8 path".to_owned()))?
         .to_owned();
 
-    // Upsert the skill record in DB.
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
@@ -153,7 +129,6 @@ pub(crate) fn generate_skill_db(
 }
 
 pub(crate) fn delete_skill_db(conn: &rusqlite::Connection, id: &str) -> Result<(), AppError> {
-    // Fetch file_path before deletion so we can remove the file.
     let file_path: Option<String> = conn
         .query_row("SELECT file_path FROM skills WHERE id = ?1", [id], |row| {
             row.get(0)
@@ -166,9 +141,7 @@ pub(crate) fn delete_skill_db(conn: &rusqlite::Connection, id: &str) -> Result<(
     }
 
     if let Some(path) = file_path {
-        // Best-effort file removal; ignore errors.
         let _ = std::fs::remove_file(&path);
-        // Also remove the agents mirror if it exists.
         let agents_mirror =
             path.replace("/.smartcrab/.claude/skills/", "/.smartcrab/.agents/skills/");
         if agents_mirror != path {
