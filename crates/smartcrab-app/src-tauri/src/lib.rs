@@ -1,5 +1,10 @@
+#![deny(clippy::dbg_macro, clippy::expect_used, clippy::unwrap_used)]
+#![warn(clippy::pedantic)]
+
 pub mod adapters;
+pub mod commands;
 pub mod db;
+pub mod engine;
 pub mod error;
 
 use std::sync::Arc;
@@ -11,9 +16,9 @@ use crate::adapters::chat::ChatAdapter;
 use crate::adapters::chat::discord::DiscordChatAdapter;
 use crate::adapters::llm::LlmAdapter;
 use crate::adapters::llm::claude::ClaudeLlmAdapter;
+use crate::db::DbState;
 use crate::error::{AppError, Result};
 
-/// Builds the default chat adapter registry with all built-in adapters.
 #[must_use]
 pub fn default_chat_registry() -> AdapterRegistry<dyn ChatAdapter> {
     let mut registry: AdapterRegistry<dyn ChatAdapter> = AdapterRegistry::new();
@@ -22,7 +27,6 @@ pub fn default_chat_registry() -> AdapterRegistry<dyn ChatAdapter> {
     registry
 }
 
-/// Builds the default LLM adapter registry with all built-in adapters.
 #[must_use]
 pub fn default_llm_registry() -> AdapterRegistry<dyn LlmAdapter> {
     let mut registry: AdapterRegistry<dyn LlmAdapter> = AdapterRegistry::new();
@@ -31,14 +35,6 @@ pub fn default_llm_registry() -> AdapterRegistry<dyn LlmAdapter> {
     registry
 }
 
-/// Entry point called from `main.rs`.
-///
-/// Initialises the database and starts the Tauri application.
-///
-/// # Errors
-///
-/// Returns [`AppError`] if the database cannot be initialised or the Tauri
-/// runtime fails to start.
 pub fn run() -> Result<()> {
     tauri::Builder::default()
         .setup(|app| {
@@ -46,95 +42,70 @@ pub fn run() -> Result<()> {
                 .path()
                 .app_data_dir()
                 .map_err(|e| AppError::Other(e.to_string()))?;
-
             std::fs::create_dir_all(&app_dir)?;
-
             let db_path = app_dir.join("smartcrab.db");
             let db_path_str = db_path
                 .to_str()
                 .ok_or_else(|| AppError::Other("DB path is not valid UTF-8".to_owned()))?;
-
-            let _conn = db::init(db_path_str)?;
-
+            let conn = db::init(db_path_str)?;
+            app.manage(DbState {
+                conn: std::sync::Mutex::new(conn),
+            });
             tracing::info!("SmartCrab app started");
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![
+            commands::execution::execute_pipeline,
+            commands::execution::cancel_execution,
+            commands::execution::get_execution_history,
+            commands::execution::get_execution_detail,
+        ])
         .run(tauri::generate_context!())
         .map_err(AppError::Tauri)?;
-
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
+    use crate::adapters::chat::{ChatAdapter, ChatCapabilities};
 
     #[test]
     fn default_chat_registry_contains_discord() {
         let registry = default_chat_registry();
-        let discord = registry.get("discord");
-        assert!(discord.is_some());
-        assert_eq!(
-            discord.map(|a| a.id().to_owned()),
-            Some("discord".to_owned())
-        );
+        assert!(registry.get("discord").is_some());
+        assert_eq!(registry.get("discord").map(|a| a.id().to_owned()), Some("discord".to_owned()));
     }
 
     #[test]
     fn default_llm_registry_contains_claude() {
         let registry = default_llm_registry();
-        let claude = registry.get("claude");
-        assert!(claude.is_some());
-        assert_eq!(claude.map(|a| a.id().to_owned()), Some("claude".to_owned()));
+        assert!(registry.get("claude").is_some());
+        assert_eq!(registry.get("claude").map(|a| a.id().to_owned()), Some("claude".to_owned()));
     }
 
-    /// Demonstrates that adding a new adapter requires only implementing
-    /// the trait and registering it — no changes to existing code.
     #[test]
     fn extensibility_new_adapter_via_trait_impl() {
-        use async_trait::async_trait;
-
-        use crate::adapters::chat::{ChatAdapter, ChatCapabilities};
-        use crate::error::AppError;
-
         struct SlackAdapter;
-
         #[async_trait]
         impl ChatAdapter for SlackAdapter {
-            fn id(&self) -> &'static str {
-                "slack"
-            }
-            fn name(&self) -> &'static str {
-                "Slack"
-            }
+            fn id(&self) -> &'static str { "slack" }
+            fn name(&self) -> &'static str { "Slack" }
             fn capabilities(&self) -> &ChatCapabilities {
                 &ChatCapabilities {
-                    threads: true,
-                    reactions: true,
-                    file_upload: true,
-                    streaming: false,
-                    direct_message: true,
-                    group_message: true,
+                    threads: true, reactions: true, file_upload: true,
+                    streaming: false, direct_message: true, group_message: true,
                 }
             }
-            async fn send_message(&self, _: &str, _: &str) -> Result<()> {
-                Ok(())
-            }
-            async fn start_listener(&self) -> Result<()> {
-                Ok(())
-            }
-            async fn stop_listener(&self) -> Result<()> {
-                Ok(())
-            }
-            fn is_running(&self) -> bool {
-                false
-            }
+            async fn send_message(&self, _: &str, _: &str) -> crate::error::Result<()> { Ok(()) }
+            async fn start_listener(&self) -> crate::error::Result<()> { Ok(()) }
+            async fn stop_listener(&self) -> crate::error::Result<()> { Ok(()) }
+            fn is_running(&self) -> bool { false }
         }
-
         let mut registry = default_chat_registry();
         let slack_adapter: Arc<dyn ChatAdapter> = Arc::new(SlackAdapter);
         registry.register("slack".to_owned(), slack_adapter);
-
         assert_eq!(registry.list().len(), 2);
         assert!(registry.get("slack").is_some());
         assert!(registry.get("discord").is_some());
