@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
-use crate::engine::yaml_schema::{NodeDefinition, NextTarget, PipelineDefinition};
+use crate::engine::yaml_schema::{NextTarget, NodeDefinition, PipelineDefinition};
 use crate::error::AppError;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResolvedNodeType {
@@ -16,10 +16,13 @@ pub struct ResolvedPipeline {
 }
 
 pub fn parse_pipeline(yaml: &str) -> Result<ResolvedPipeline, AppError> {
-    let definition: PipelineDefinition = serde_yaml::from_str(yaml)
-        .map_err(|e| AppError::Yaml(e.to_string()))?;
+    let definition: PipelineDefinition =
+        serde_yaml::from_str(yaml).map_err(|e| AppError::Yaml(e.to_string()))?;
     let node_types = resolve_node_types(&definition.nodes);
-    Ok(ResolvedPipeline { definition, node_types })
+    Ok(ResolvedPipeline {
+        definition,
+        node_types,
+    })
 }
 
 fn resolve_node_types(nodes: &[NodeDefinition]) -> HashMap<String, ResolvedNodeType> {
@@ -45,11 +48,8 @@ fn resolve_node_types(nodes: &[NodeDefinition]) -> HashMap<String, ResolvedNodeT
         .iter()
         .map(|node| {
             let is_referenced = referenced.contains(&node.id);
-            let has_routing = node.next.is_some()
-                || node
-                    .conditions
-                    .as_ref()
-                    .is_some_and(|c| !c.is_empty());
+            let has_routing =
+                node.next.is_some() || node.conditions.as_ref().is_some_and(|c| !c.is_empty());
             let node_type = if !is_referenced {
                 ResolvedNodeType::Input
             } else if has_routing {

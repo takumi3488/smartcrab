@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineDefinition {
@@ -54,10 +54,19 @@ pub struct Condition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum MatchCondition {
-    Regex { pattern: String },
-    StatusCode { codes: Vec<u16> },
-    JsonPath { path: String, expected: serde_json::Value },
-    ExitWhen { pattern: String },
+    Regex {
+        pattern: String,
+    },
+    StatusCode {
+        codes: Vec<u16>,
+    },
+    JsonPath {
+        path: String,
+        expected: serde_json::Value,
+    },
+    ExitWhen {
+        pattern: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

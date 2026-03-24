@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::error::AppError;
+use std::collections::HashMap;
 
 pub struct LoopGuard {
     max_count: u32,
