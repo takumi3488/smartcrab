@@ -1,5 +1,5 @@
 use crate::engine::yaml_schema::{NextTarget, NodeDefinition, PipelineDefinition};
-use crate::error::AppError;
+use crate::error::Result;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,9 +20,8 @@ pub struct ResolvedPipeline {
 /// # Errors
 ///
 /// Returns [`AppError::Yaml`] if the YAML is invalid or missing required fields.
-pub fn parse_pipeline(yaml: &str) -> Result<ResolvedPipeline, AppError> {
-    let definition: PipelineDefinition =
-        serde_yaml::from_str(yaml).map_err(|e| AppError::Yaml(e.to_string()))?;
+pub fn parse_pipeline(yaml: &str) -> Result<ResolvedPipeline> {
+    let definition: PipelineDefinition = serde_yaml::from_str(yaml)?;
     let node_types = resolve_node_types(&definition.nodes);
     Ok(ResolvedPipeline {
         definition,
