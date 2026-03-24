@@ -15,6 +15,11 @@ pub struct ResolvedPipeline {
     pub node_types: HashMap<String, ResolvedNodeType>,
 }
 
+/// Parse a YAML pipeline definition string into a resolved pipeline.
+///
+/// # Errors
+///
+/// Returns [`AppError::Yaml`] if the YAML is invalid or missing required fields.
 pub fn parse_pipeline(yaml: &str) -> Result<ResolvedPipeline, AppError> {
     let definition: PipelineDefinition =
         serde_yaml::from_str(yaml).map_err(|e| AppError::Yaml(e.to_string()))?;
@@ -152,7 +157,7 @@ nodes:
     fn test_parse_example1_discord_claude_bot() {
         let result = parse_pipeline(EXAMPLE1_DISCORD);
         assert!(result.is_ok(), "Parse should succeed: {:?}", result.err());
-        let pipeline = result.expect("already checked");
+        let pipeline = result.unwrap_or_else(|e| panic!("should have been checked: {e:?}"));
         assert_eq!(pipeline.definition.name, "discord-claude-bot");
 
         let types = &pipeline.node_types;
@@ -177,7 +182,7 @@ nodes:
     fn test_parse_example2_health_check() {
         let result = parse_pipeline(EXAMPLE2_HEALTH_CHECK);
         assert!(result.is_ok(), "Parse should succeed: {:?}", result.err());
-        let pipeline = result.expect("already checked");
+        let pipeline = result.unwrap_or_else(|e| panic!("should have been checked: {e:?}"));
         assert_eq!(pipeline.definition.name, "health-check");
 
         let types = &pipeline.node_types;
@@ -207,7 +212,7 @@ nodes:
     fn test_parse_example3_loop() {
         let result = parse_pipeline(EXAMPLE3_LOOP);
         assert!(result.is_ok(), "Parse should succeed: {:?}", result.err());
-        let pipeline = result.expect("already checked");
+        let pipeline = result.unwrap_or_else(|e| panic!("should have been checked: {e:?}"));
         assert_eq!(pipeline.definition.name, "code-review-loop");
         assert_eq!(pipeline.definition.max_loop_count, Some(5));
 
@@ -243,16 +248,16 @@ nodes:
   - id: b
     name: Node B
 "#;
-        let pipeline = parse_pipeline(yaml).expect("should parse");
+        let pipeline = parse_pipeline(yaml).unwrap_or_else(|e| panic!("should parse: {e:?}"));
         let node_a = pipeline
             .definition
             .nodes
             .iter()
             .find(|n| n.id == "a")
-            .expect("node a should exist");
+            .unwrap_or_else(|| panic!("node a should exist"));
         match &node_a.next {
             Some(NextTarget::Single(id)) => assert_eq!(id, "b"),
-            other => panic!("Expected Single next, got: {:?}", other),
+            other => panic!("Expected Single next, got: {other:?}"),
         }
     }
 
@@ -274,20 +279,20 @@ nodes:
   - id: c
     name: Node C
 "#;
-        let pipeline = parse_pipeline(yaml).expect("should parse");
+        let pipeline = parse_pipeline(yaml).unwrap_or_else(|e| panic!("should parse: {e:?}"));
         let node_a = pipeline
             .definition
             .nodes
             .iter()
             .find(|n| n.id == "a")
-            .expect("node a should exist");
+            .unwrap_or_else(|| panic!("node a should exist"));
         match &node_a.next {
             Some(NextTarget::Multiple(ids)) => {
                 assert_eq!(ids.len(), 2);
                 assert!(ids.contains(&"b".to_owned()));
                 assert!(ids.contains(&"c".to_owned()));
             }
-            other => panic!("Expected Multiple next, got: {:?}", other),
+            other => panic!("Expected Multiple next, got: {other:?}"),
         }
     }
 }

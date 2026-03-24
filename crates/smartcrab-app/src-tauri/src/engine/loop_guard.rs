@@ -7,6 +7,7 @@ pub struct LoopGuard {
 }
 
 impl LoopGuard {
+    #[must_use]
     pub fn new(max_count: u32) -> Self {
         Self {
             max_count,
@@ -14,6 +15,11 @@ impl LoopGuard {
         }
     }
 
+    /// Check the iteration count for `node_id` and increment it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AppError::Engine`] if the loop limit is exceeded.
     pub fn check_and_increment(&mut self, node_id: &str) -> Result<u32, AppError> {
         let count = self
             .execution_counts
@@ -53,7 +59,7 @@ mod tests {
                 assert!(msg.contains("Loop limit 3 exceeded"));
                 assert!(msg.contains("node_a"));
             }
-            other => panic!("Expected Engine error, got: {:?}", other),
+            other => panic!("Expected Engine error, got: {other:?}"),
         }
     }
 
@@ -61,8 +67,14 @@ mod tests {
     fn test_loop_guard_reset() {
         let mut guard = LoopGuard::new(2);
 
-        guard.check_and_increment("node_b").expect("first call ok");
-        guard.check_and_increment("node_b").expect("second call ok");
+        assert!(
+            guard.check_and_increment("node_b").is_ok(),
+            "first call should succeed"
+        );
+        assert!(
+            guard.check_and_increment("node_b").is_ok(),
+            "second call should succeed"
+        );
         assert!(guard.check_and_increment("node_b").is_err());
 
         guard.reset();
