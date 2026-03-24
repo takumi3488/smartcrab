@@ -1,39 +1,64 @@
-import { useUiStore, type AppView } from './store/uiStore';
+import { useState } from "react";
+import Layout from "./components/layout/Layout";
+import PipelineList from "./components/pipeline/PipelineList";
+import ExecutionHistory from "./components/pipeline/ExecutionHistory";
+import ExecutionLog from "./components/pipeline/ExecutionLog";
 
-const viewLabels: Record<AppView, string> = {
-  pipelines: 'Pipelines',
-  editor: 'Editor',
-  chat: 'Chat',
-  settings: 'Settings',
+type View = "pipelines" | "executions" | "chat" | "settings";
+
+const VIEW_TITLES: Record<View, string> = {
+  pipelines: "Pipelines",
+  executions: "Execution History",
+  chat: "AI Chat",
+  settings: "Settings",
 };
 
-const views = Object.keys(viewLabels) as AppView[];
+function App() {
+  const [currentView, setCurrentView] = useState<View>("pipelines");
+  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
 
-export default function App() {
-  const { currentView, setCurrentView } = useUiStore();
+  const handleViewChange = (view: string) => {
+    setCurrentView(view as View);
+    setSelectedExecutionId(null);
+  };
+
+  const renderContent = () => {
+    if (selectedExecutionId) {
+      return <ExecutionLog executionId={selectedExecutionId} />;
+    }
+
+    switch (currentView) {
+      case "pipelines":
+        return (
+          <PipelineList
+            onEditPipeline={() => {}}
+            onNewPipeline={() => {}}
+          />
+        );
+      case "executions":
+        return (
+          <ExecutionHistory
+            onSelectExecution={(id) => setSelectedExecutionId(id)}
+          />
+        );
+      default:
+        return (
+          <div className="flex items-center justify-center h-full text-gray-400">
+            <p>Coming soon</p>
+          </div>
+        );
+    }
+  };
 
   return (
-    <div className="flex h-screen bg-gray-950 text-gray-100">
-      <nav className="w-48 bg-gray-900 border-r border-gray-800 flex flex-col p-4 gap-2">
-        <h1 className="text-xl font-bold text-white mb-4">SmartCrab</h1>
-        {views.map((view) => (
-          <button
-            key={view}
-            onClick={() => setCurrentView(view)}
-            className={`text-left px-3 py-2 rounded-md text-sm transition-colors ${
-              currentView === view
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-            }`}
-          >
-            {viewLabels[view]}
-          </button>
-        ))}
-      </nav>
-      <main className="flex-1 overflow-auto p-6">
-        <h2 className="text-2xl font-semibold mb-4">{viewLabels[currentView]}</h2>
-        <p className="text-gray-400">View: {currentView}</p>
-      </main>
-    </div>
+    <Layout
+      currentView={currentView}
+      onViewChange={handleViewChange}
+      title={selectedExecutionId ? "Execution Log" : VIEW_TITLES[currentView]}
+    >
+      {renderContent()}
+    </Layout>
   );
 }
+
+export default App;
