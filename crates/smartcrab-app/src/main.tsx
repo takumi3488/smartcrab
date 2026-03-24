@@ -1,7 +1,12 @@
-// Placeholder frontend entry point
-document.addEventListener("DOMContentLoaded", () => {
-  const root = document.getElementById("root");
-  if (root) {
-    root.innerHTML = "<h1>SmartCrab</h1><p>Pipeline management coming soon.</p>";
-  }
-});
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+
+const rootElement = document.getElementById("root");
+if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+}

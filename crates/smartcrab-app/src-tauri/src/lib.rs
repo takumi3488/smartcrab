@@ -1,36 +1,54 @@
 pub mod bridge;
 pub mod commands;
+pub mod db;
+pub mod engine;
 pub mod error;
 
-use commands::pipeline;
+use std::sync::Mutex;
 
-/// Creates and configures the Tauri application.
-///
-/// # Panics
-///
-/// Panics if the in-memory `SQLite` database cannot be opened, the schema
-/// cannot be initialised, or the Tauri application fails to start. These
-/// are all considered unrecoverable fatal startup failures.
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-#[expect(
-    clippy::expect_used,
-    reason = "fatal startup failure — no recovery path"
-)]
-pub fn run() {
-    let conn =
-        rusqlite::Connection::open_in_memory().expect("Failed to open in-memory SQLite database");
-    pipeline::init_db(&conn).expect("Failed to initialise database schema");
+use tauri::Manager as _;
 
+use crate::error::{AppError, Result};
+
+/// Entry point called from `main.rs`.
+///
+/// Initialises the database and starts the Tauri application.
+///
+/// # Errors
+///
+/// Returns [`AppError`] if the database cannot be initialised or the Tauri
+/// runtime fails to start.
+pub fn run() -> Result<()> {
     tauri::Builder::default()
-        .manage(std::sync::Mutex::new(conn))
+        .setup(|app| {
+            let app_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|e| AppError::Other(e.to_string()))?;
+
+            std::fs::create_dir_all(&app_dir)?;
+
+            let db_path = app_dir.join("smartcrab.db");
+            let db_path_str = db_path
+                .to_str()
+                .ok_or_else(|| AppError::Other("DB path is not valid UTF-8".to_owned()))?;
+
+            let conn = db::init(db_path_str)?;
+            app.manage(Mutex::new(conn));
+
+            tracing::info!("SmartCrab app started");
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
-            pipeline::list_pipelines,
-            pipeline::get_pipeline,
-            pipeline::create_pipeline,
-            pipeline::update_pipeline,
-            pipeline::delete_pipeline,
-            pipeline::validate_pipeline,
+            commands::pipeline::list_pipelines,
+            commands::pipeline::get_pipeline,
+            commands::pipeline::create_pipeline,
+            commands::pipeline::update_pipeline,
+            commands::pipeline::delete_pipeline,
+            commands::pipeline::validate_pipeline,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .map_err(AppError::Tauri)?;
+
+    Ok(())
 }

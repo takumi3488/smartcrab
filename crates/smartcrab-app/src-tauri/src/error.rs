@@ -6,22 +6,47 @@ pub enum AppError {
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
 
-    #[error("I/O error: {0}")]
+    #[error("Migration error: {0}")]
+    Migration(String),
+
+    #[error("Tauri error: {0}")]
+    Tauri(#[from] tauri::Error),
+
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
+
+    #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
     #[error("YAML error: {0}")]
     Yaml(#[from] serde_yaml::Error),
 
+    #[error("Engine error: {0}")]
+    Engine(String),
+
     #[error("Not found: {0}")]
     NotFound(String),
 
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
+    #[error("Adapter error: {0}")]
+    Adapter(String),
+
+    #[error("Claude CLI error: {0}")]
+    ClaudeCli(String),
+
     #[error("Validation error: {0}")]
     Validation(String),
+
+    #[error("{0}")]
+    Other(String),
 }
 
-/// Tauri requires that command return errors implement `Serialize`.
+pub type Result<T> = std::result::Result<T, AppError>;
+
 impl Serialize for AppError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -54,9 +79,8 @@ mod tests {
     #[test]
     fn app_error_serializes_to_string() {
         let err = AppError::NotFound("test".to_owned());
-        let json = serde_json::to_string(&err);
-        assert!(json.is_ok());
-        let json = json.unwrap_or_default();
+        let json = serde_json::to_string(&err)
+            .unwrap_or_else(|e| panic!("serialize should succeed: {e}"));
         assert!(json.contains("Not found: test"));
     }
 }
