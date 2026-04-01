@@ -76,6 +76,7 @@ pub fn run() -> Result<()> {
             commands::pipeline::update_pipeline,
             commands::pipeline::delete_pipeline,
             commands::pipeline::validate_pipeline,
+            commands::pipeline::toggle_pipeline,
             commands::chat_adapter::list_adapters,
             commands::chat_adapter::get_adapter_config,
             commands::chat_adapter::save_adapter_config,
@@ -93,6 +94,7 @@ pub fn run() -> Result<()> {
             commands::skills::list_skills,
             commands::skills::generate_skill,
             commands::skills::delete_skill,
+            commands::skills::invoke_skill,
             commands::chat_ai::chat_create_pipeline,
         ])
         .run(tauri::generate_context!())
