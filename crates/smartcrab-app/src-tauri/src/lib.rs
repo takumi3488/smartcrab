@@ -15,6 +15,7 @@ use tauri::Manager as _;
 use crate::adapters::AdapterRegistry;
 use crate::adapters::chat::ChatAdapter;
 use crate::adapters::chat::discord::DiscordChatAdapter;
+use crate::adapters::chat::runtime::ChatRuntimeState;
 use crate::adapters::llm::LlmAdapter;
 use crate::adapters::llm::claude::ClaudeLlmAdapter;
 use crate::db::DbState;
@@ -24,7 +25,10 @@ use crate::error::{AppError, Result};
 pub fn default_chat_registry() -> AdapterRegistry<dyn ChatAdapter> {
     let mut registry: AdapterRegistry<dyn ChatAdapter> = AdapterRegistry::new();
     let adapter: Arc<dyn ChatAdapter> = Arc::new(DiscordChatAdapter::new());
-    registry.register("discord".to_owned(), adapter);
+    registry.register(
+        crate::adapters::chat::discord::ADAPTER_ID.to_owned(),
+        adapter,
+    );
     registry
 }
 
@@ -66,6 +70,8 @@ pub fn run() -> Result<()> {
             app.manage(DbState {
                 conn: std::sync::Mutex::new(conn),
             });
+            let chat_runtime = ChatRuntimeState::new(default_chat_registry());
+            app.manage(chat_runtime);
             tracing::info!("SmartCrab app started");
             Ok(())
         })
@@ -76,6 +82,7 @@ pub fn run() -> Result<()> {
             commands::pipeline::update_pipeline,
             commands::pipeline::delete_pipeline,
             commands::pipeline::validate_pipeline,
+            commands::pipeline::toggle_pipeline,
             commands::chat_adapter::list_adapters,
             commands::chat_adapter::get_adapter_config,
             commands::chat_adapter::save_adapter_config,
@@ -93,6 +100,7 @@ pub fn run() -> Result<()> {
             commands::skills::list_skills,
             commands::skills::generate_skill,
             commands::skills::delete_skill,
+            commands::skills::invoke_skill,
             commands::chat_ai::chat_create_pipeline,
         ])
         .run(tauri::generate_context!())
