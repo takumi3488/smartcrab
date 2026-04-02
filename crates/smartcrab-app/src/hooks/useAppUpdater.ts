@@ -99,7 +99,10 @@ export function useAppUpdater(): UseAppUpdaterReturn {
 
     await checkForUpdates();
 
-    if (statusRef.current === 'available') {
+    // Cast to reset TypeScript's control-flow narrowing applied by the early-return
+    // guard above — statusRef.current may now be 'available' after checkForUpdates().
+    const postCheckStatus = statusRef.current as UpdaterStatus;
+    if (postCheckStatus === 'available') {
       const confirmed = await ask(
         `A new version ${updateRef.current!.version} is available. Do you want to install it?`,
       );
@@ -108,7 +111,7 @@ export function useAppUpdater(): UseAppUpdaterReturn {
       } else {
         dismiss();
       }
-    } else if (statusRef.current === 'upToDate' && source === 'manual') {
+    } else if (postCheckStatus === 'upToDate' && source === 'manual') {
       await message('You are already running the latest version.');
     }
   }, [checkForUpdates, installAvailableUpdate, dismiss]);
