@@ -29,7 +29,7 @@
             return f
         }()
 
-        private nonisolated(unsafe) static let iso8601Plain: ISO8601DateFormatter = ISO8601DateFormatter()
+        private nonisolated(unsafe) static let iso8601Plain = ISO8601DateFormatter()
 
         static func parseISO8601(_ s: String) -> Date? {
             iso8601WithMs.date(from: s) ?? iso8601Plain.date(from: s)
@@ -583,6 +583,5 @@
             else { return }
             cont(.success(data))
         }
-
     }
 #endif

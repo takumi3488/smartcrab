@@ -28,7 +28,7 @@ import XCTest
         /// Given an ISO8601 string with milliseconds,
         /// When parsed with parseISO8601,
         /// Then the returned Date matches the exact point in time encoded in the string.
-        func test_parseISO8601_withMillisecondTimestamp_returnsCorrectDate() {
+        func test_parseISO8601_withMillisecondTimestamp_returnsCorrectDate() throws {
             // Given — known timestamp: 2026-05-26 11:15:20.123 UTC
             let input = "2026-05-26T11:15:20.123Z"
             var components = DateComponents()
@@ -40,7 +40,7 @@ import XCTest
             components.second = 20
             components.nanosecond = 123_000_000
             components.timeZone = TimeZone(identifier: "UTC")
-            let expected = Calendar(identifier: .iso8601).date(from: components)!
+            let expected = try XCTUnwrap(Calendar(identifier: .iso8601).date(from: components))
 
             // When
             let result = BunServiceMacOS.parseISO8601(input)
@@ -86,11 +86,11 @@ import XCTest
         /// Given a plain ISO8601 string without milliseconds,
         /// When parsed with parseISO8601,
         /// Then the returned Date matches the expected point in time.
-        func test_parseISO8601_withPlainTimestamp_returnsCorrectDate() {
+        func test_parseISO8601_withPlainTimestamp_returnsCorrectDate() throws {
             // Given — known timestamp: 2026-05-26 11:15:20 UTC
             let input = "2026-05-26T11:15:20Z"
             let reference = ISO8601DateFormatter()
-            let expected = reference.date(from: input)!
+            let expected = try XCTUnwrap(reference.date(from: input))
 
             // When
             let result = BunServiceMacOS.parseISO8601(input)
